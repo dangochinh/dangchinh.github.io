@@ -13,6 +13,9 @@ const PlayerRoom = () => {
     const [gameState, setGameState] = useState(initialRoomData?.gameState || 'WAITING');
     const [availableSets, setAvailableSets] = useState(initialRoomData?.availableSets || []);
     const [mySetId, setMySetId] = useState(initialRoomData?.players?.find(p => p.id === socket?.id)?.setId || null);
+    const [myTickets, setMyTickets] = useState(null);
+    const [markedNumbers, setMarkedNumbers] = useState([]);
+    const [currentNumber, setCurrentNumber] = useState(initialRoomData?.currentNumber || null);
 
     // ... (rest of listeners) ...
 
