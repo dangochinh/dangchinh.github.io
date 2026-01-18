@@ -16,6 +16,8 @@ const PlayerRoom = () => {
     const [markedNumbers, setMarkedNumbers] = useState([]);
     const [currentNumber, setCurrentNumber] = useState(initialRoomData?.currentNumber || null);
     const [drawnHistory, setDrawnHistory] = useState(initialRoomData?.numbersDrawn || []);
+    const [winHistory, setWinHistory] = useState(initialRoomData?.winHistory || []);
+    const [showHistory, setShowHistory] = useState(false);
 
     const [isSelecting, setIsSelecting] = useState(false);
 
@@ -40,11 +42,26 @@ const PlayerRoom = () => {
             setGameState('ENDED');
         });
 
+        socket.on('gameRestarted', () => {
+            setGameState('WAITING');
+            setCurrentNumber(null);
+            setDrawnHistory([]);
+            if (data?.winHistory) setWinHistory(data.winHistory);
+            alert('New Game Started! Please choose your ticket.');
+        });
+
+        socket.on('gameEnded', ({ winner, reason, winHistory }) => {
+            alert(reason === 'BINGO' ? `BINGO! Winner: ${winner}` : 'Game Over');
+            setGameState('ENDED');
+            if (winHistory) setWinHistory(winHistory);
+        });
+
         return () => {
             socket.off('setsUpdated');
             socket.off('numberDrawn');
             socket.off('gameStateChanged');
             socket.off('gameEnded');
+            socket.off('gameRestarted');
         }
     }, [socket, roomId, navigate]);
 
@@ -78,12 +95,42 @@ const PlayerRoom = () => {
             {/* Header */}
             <div className="fixed top-0 left-0 right-0 bg-slate-800 p-4 shadow-md z-10 flex justify-between items-center">
                 <div className="font-bold">Room: {roomId}</div>
-                <div className="font-bold text-violet-400">{gameState}</div>
+                <div className="flex items-center gap-4">
+                    <button onClick={() => setShowHistory(!showHistory)} className="text-xs px-2 py-1 bg-slate-700 rounded border border-slate-600">
+                        {showHistory ? 'Hide History' : '🏆 History'}
+                    </button>
+                    <div className="font-bold text-violet-400">{gameState}</div>
+                </div>
                 <div className="flex flex-col items-end">
                     <div className="font-bold">{name}</div>
                     {myTickets && <div className="text-xs text-green-400">Ready</div>}
                 </div>
             </div>
+
+            {/* History Modal/Overlay */}
+            {showHistory && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-800 rounded-xl p-6 w-full max-w-md max-h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-yellow-400">🏆 Hall of Fame</h3>
+                            <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-white">✕</button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-2">
+                            {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded">
+                                    <div>
+                                        <span className="font-bold text-yellow-400 mr-2">#{win.round}</span>
+                                        <span className="font-bold text-white">{win.name}</span>
+                                    </div>
+                                    <span className="text-xs text-slate-400">{new Date(win.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                            )) : (
+                                <div className="text-center text-slate-500 py-8">No winners yet.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="pt-20 max-w-lg mx-auto">
                 {/* Current Number Display */}

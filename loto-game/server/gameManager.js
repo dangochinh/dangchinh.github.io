@@ -31,7 +31,8 @@ class GameManager {
             numbersDrawn: [],
             availableSets: availableSets,
             drawInterval: null,
-            currentNumber: null
+            currentNumber: null,
+            winHistory: [] // To store winners
         });
 
         return roomId;
@@ -50,7 +51,12 @@ class GameManager {
             tickets: null
         };
         room.players.push(player);
-        return { success: true, room };
+        return {
+            success: true, room: {
+                ...room, // Send full room data including history? Or just what's needed
+                winHistory: room.winHistory
+            }
+        };
     }
 
     selectSet(roomId, playerId, setId) {
@@ -109,6 +115,34 @@ class GameManager {
             room.gameState = 'PLAYING';
             this.startDrawLoop(roomId);
         }
+    }
+
+    restartGame(roomId) {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        // Reset Game State
+        if (room.drawInterval) clearInterval(room.drawInterval);
+        room.drawInterval = null;
+        room.gameState = 'WAITING';
+        room.numbersDrawn = [];
+        room.currentNumber = null;
+
+        // Reset Players tickets but keep them in room
+        room.players.forEach(p => {
+            p.tickets = null;
+            p.setId = null;
+        });
+
+        // Reset available sets
+        room.availableSets.forEach(s => s.isTaken = false);
+
+        this.io.to(roomId).emit('gameRestarted', {
+            gameState: room.gameState,
+            players: room.players,
+            availableSets: room.availableSets,
+            winHistory: room.winHistory
+        });
     }
 
     startDrawLoop(roomId) {
@@ -175,10 +209,24 @@ class GameManager {
 
     handleBingo(room, winner) {
         this.pauseGame(room.id);
+
+        // Add to history
+        room.winHistory.push({
+            name: winner.name,
+            timestamp: new Date(),
+            round: room.winHistory.length + 1
+        });
+
+        // Cap history at 50
+        if (room.winHistory.length > 50) {
+            room.winHistory = room.winHistory.slice(room.winHistory.length - 50);
+        }
+
         this.io.to(room.id).emit('gameEnded', {
             winner: winner.name,
             reason: 'BINGO',
-            fullHistory: room.numbersDrawn
+            fullHistory: room.numbersDrawn,
+            winHistory: room.winHistory
         });
         room.gameState = 'ENDED';
     }

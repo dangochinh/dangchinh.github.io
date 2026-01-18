@@ -34,6 +34,8 @@ io.on('connection', (socket) => {
             socket.join(roomId);
             callback({ success: true, room: res.room });
             io.to(roomId).emit('playerJoined', res.room.players);
+            // Also emit history update to the joining player? The callback handles it.
+            // But we might want to broadcast history if it changes dynamically (only on win)
         }
     });
 
@@ -58,6 +60,7 @@ io.on('connection', (socket) => {
         if (action === 'START') gameManager.startGame(roomId);
         if (action === 'PAUSE') gameManager.pauseGame(roomId);
         if (action === 'RESUME') gameManager.resumeGame(roomId);
+        if (action === 'RESTART') gameManager.restartGame(roomId);
 
         io.to(roomId).emit('gameStateChanged', room.gameState);
     });

@@ -15,6 +15,7 @@ const HostRoom = () => {
     const [currentNumber, setCurrentNumber] = useState(null);
     const [lastWinner, setLastWinner] = useState(null);
     const [voiceLang, setVoiceLang] = useState('vi');
+    const [winHistory, setWinHistory] = useState([]);
 
     useEffect(() => {
         if (!socket || !roomId) {
@@ -40,11 +41,21 @@ const HostRoom = () => {
             setGameState(state);
         });
 
-        socket.on('gameEnded', ({ winner, reason, fullHistory }) => {
+        socket.on('gameEnded', ({ winner, reason, fullHistory, winHistory }) => {
             setGameState('ENDED');
             setLastWinner(winner);
             if (fullHistory) setNumbersDrawn(fullHistory);
+            if (winHistory) setWinHistory(winHistory);
         });
+
+        socket.on('gameRestarted', (data) => {
+            setGameState('WAITING');
+            setNumbersDrawn([]);
+            setCurrentNumber(null);
+            setLastWinner(null);
+            // Optionally clear history or keep it? Requirement says "history bingo log"
+            if (data.winHistory) setWinHistory(data.winHistory);
+        })
 
         return () => {
             socket.off('playerJoined');
@@ -52,6 +63,7 @@ const HostRoom = () => {
             socket.off('numberDrawn');
             socket.off('gameStateChanged');
             socket.off('gameEnded');
+            socket.off('gameRestarted');
         }
     }, [socket, roomId, navigate]);
 
@@ -156,14 +168,40 @@ const HostRoom = () => {
                             </div>
                         )}
                         {gameState === 'ENDED' && lastWinner && (
-                            <div className="text-center">
+                            <div className="text-center mt-6">
                                 <h2 className="text-4xl font-extrabold text-yellow-400 mb-2">BINGO!</h2>
-                                <p className="text-2xl">Winner: {lastWinner}</p>
+                                <p className="text-2xl mb-8">Winner: {lastWinner}</p>
+
+                                <button
+                                    onClick={() => sendAction('RESTART')}
+                                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl font-bold text-xl shadow-lg transform hover:scale-105 transition-all"
+                                >
+                                    Start New Game
+                                </button>
                             </div>
                         )}
+
                     </div>
 
-                    <div className="grid grid-cols-10 gap-2 max-w-4xl mx-auto">
+                    {/* Hall of Fame - Always Visible */}
+                    <div className="mt-8 bg-slate-800/50 p-6 rounded-xl max-w-lg mx-auto border border-slate-700">
+                        <h3 className="text-xl font-bold mb-4 text-slate-300">🏆 Hall of Fame (Last 50)</h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                            {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded flex-wrap">
+                                    <div className="flex items-center">
+                                        <span className="font-bold text-yellow-400 mr-2">#{win.round}</span>
+                                        <span className="font-bold text-white">{win.name}</span>
+                                    </div>
+                                    <span className="text-xs text-slate-400">{new Date(win.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                            )) : (
+                                <div className="text-center text-slate-500 py-4">No winners yet</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-10 gap-2 max-w-4xl mx-auto mt-8">
                         {Array.from({ length: 90 }, (_, i) => i + 1).map(num => (
                             <div
                                 key={num}
@@ -195,8 +233,8 @@ const HostRoom = () => {
                         ))}
                     </div>
                 </aside>
-            </main>
-        </div>
+            </main >
+        </div >
     );
 };
 
