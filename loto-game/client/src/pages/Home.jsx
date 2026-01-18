@@ -9,9 +9,20 @@ const Home = () => {
     const [name, setName] = useState('');
 
     const createRoom = () => {
-        if (!socket) return;
-        socket.emit('createRoom', {}, ({ roomId }) => {
-            navigate('/host', { state: { roomId } });
+        console.log('Host New Game clicked');
+        if (!socket) {
+            console.error('Socket is null');
+            alert('Server connection is not established yet. Please wait...');
+            return;
+        }
+        console.log('Emitting createRoom event...');
+        socket.emit('createRoom', {}, (response) => {
+            console.log('createRoom response:', response);
+            if (response && response.roomId) {
+                navigate('/host', { state: { roomId: response.roomId } });
+            } else {
+                console.error('Invalid response from server:', response);
+            }
         });
     };
 

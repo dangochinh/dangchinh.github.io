@@ -21,9 +21,16 @@ io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
     socket.on('createRoom', (data, callback) => {
-        const roomId = gameManager.createRoom(socket.id);
-        socket.join(roomId);
-        callback({ roomId });
+        console.log('Received createRoom request from', socket.id);
+        try {
+            const roomId = gameManager.createRoom(socket.id);
+            console.log('Room created:', roomId);
+            socket.join(roomId);
+            callback({ roomId });
+        } catch (err) {
+            console.error('Error creating room:', err);
+            callback({ error: 'Failed to create room' });
+        }
     });
 
     socket.on('joinRoom', ({ roomId, playerName }, callback) => {
@@ -40,15 +47,22 @@ io.on('connection', (socket) => {
     });
 
     socket.on('selectSet', ({ roomId, setId }, callback) => {
-        const res = gameManager.selectSet(roomId, socket.id, setId);
-        if (res && res.success) {
-            callback(res);
-            // Notify room that set is taken
-            const room = gameManager.rooms.get(roomId);
-            io.to(roomId).emit('setsUpdated', room.availableSets);
-            io.to(roomId).emit('playerUpdated', room.players);
-        } else {
-            callback({ error: res ? res.error : 'Failed' });
+        console.log(`Socket ${socket.id} selecting set ${setId} in room ${roomId}`);
+        try {
+            const res = gameManager.selectSet(roomId, socket.id, setId);
+            console.log('selectSet result:', res);
+            if (res && res.success) {
+                callback(res);
+                // Notify room that set is taken
+                const room = gameManager.rooms.get(roomId);
+                io.to(roomId).emit('setsUpdated', room.availableSets);
+                io.to(roomId).emit('playerUpdated', room.players);
+            } else {
+                callback({ error: res ? res.error : 'Failed' });
+            }
+        } catch (err) {
+            console.error('Error in selectSet:', err);
+            callback({ error: 'Server error during selection' });
         }
     });
 

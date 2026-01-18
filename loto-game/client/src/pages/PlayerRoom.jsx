@@ -12,9 +12,11 @@ const PlayerRoom = () => {
 
     const [gameState, setGameState] = useState(initialRoomData?.gameState || 'WAITING');
     const [availableSets, setAvailableSets] = useState(initialRoomData?.availableSets || []);
-    const [myTickets, setMyTickets] = useState(null);
-    const [markedNumbers, setMarkedNumbers] = useState([]);
-    const [currentNumber, setCurrentNumber] = useState(initialRoomData?.currentNumber || null);
+    const [mySetId, setMySetId] = useState(initialRoomData?.players?.find(p => p.id === socket?.id)?.setId || null);
+
+    // ... (rest of listeners) ...
+
+
     const [drawnHistory, setDrawnHistory] = useState(initialRoomData?.numbersDrawn || []);
     const [winHistory, setWinHistory] = useState(initialRoomData?.winHistory || []);
     const [showHistory, setShowHistory] = useState(false);
@@ -69,13 +71,18 @@ const PlayerRoom = () => {
     }, [socket, roomId, navigate]);
 
     const selectSet = (setId) => {
+        console.log('Attempting to select set:', setId);
         setIsSelecting(true);
         socket.emit('selectSet', { roomId, setId }, (res) => {
+            console.log('selectSet response:', res);
             setIsSelecting(false);
             if (res.error) {
+                console.error('Selection error:', res.error);
                 alert(res.error);
             } else {
+                console.log('Tickets received:', res.tickets);
                 setMyTickets(res.tickets);
+                setMySetId(setId);
             }
         });
     };
@@ -101,16 +108,9 @@ const PlayerRoom = () => {
     };
 
     const changeTicket = () => {
-        // Simple client-side reset? No, need to release on server?
-        // Server selectSet handles releasing old set if we pick a new one. 
-        // But for UI flow, let's just reset local state to allow picking again.
-        // Or strictly call text "Change Number" implies picking new one.
-        // We can just unset myTickets and let them pick again.
-        // Ideally we should tell server we "unselected" but selectSet overwrites anyway.
         setMyTickets(null);
+        setMySetId(null);
         setIsReady(false);
-        // Note: The previous set remains "taken" until we select a NEW one in selectSet logic. 
-        // Improvement: We could emit 'releaseSet' but for now standard overwrite is fine.
     };
 
     if (!roomId) return null;
@@ -223,7 +223,7 @@ const PlayerRoom = () => {
                             <div className="bg-slate-800 p-4 rounded-xl flex items-center justify-between border border-slate-700">
                                 <div>
                                     <p className="text-slate-400 text-sm">Ticket Selected</p>
-                                    <p className="font-bold text-lg">Set #{initialRoomData?.players?.find(p => p.id === socket?.id)?.setId || '?'}</p>
+                                    <p className="font-bold text-lg">Set #{mySetId || '?'}</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <button

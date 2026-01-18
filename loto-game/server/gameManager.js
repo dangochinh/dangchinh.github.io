@@ -86,8 +86,8 @@ class GameManager {
         // Reset ready status if they change ticket
         player.isReady = false;
 
-        // Broadcast updates
-        this.emitAvailableSets(roomId);
+        // Broadcast updates - Handled by index.js callback
+        // this.emitAvailableSets(roomId);
 
         return { success: true, tickets: set.data };
     }
