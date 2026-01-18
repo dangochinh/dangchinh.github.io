@@ -14,6 +14,7 @@ const PlayerRoom = () => {
     const [availableSets, setAvailableSets] = useState(initialRoomData?.availableSets || []);
     const [mySetId, setMySetId] = useState(initialRoomData?.players?.find(p => p.id === socket?.id)?.setId || null);
     const [myTickets, setMyTickets] = useState(null);
+    const [myTicketColor, setMyTicketColor] = useState(null);
     const [markedNumbers, setMarkedNumbers] = useState([]);
     const [currentNumber, setCurrentNumber] = useState(initialRoomData?.currentNumber || null);
 
@@ -86,6 +87,9 @@ const PlayerRoom = () => {
                 console.log('Tickets received:', res.tickets);
                 setMyTickets(res.tickets);
                 setMySetId(setId);
+                // Find and store the color
+                const selectedSet = availableSets.find(s => s.id === setId);
+                if (selectedSet) setMyTicketColor(selectedSet.color);
             }
         });
     };
@@ -257,6 +261,7 @@ const PlayerRoom = () => {
                                 data={ticketData}
                                 markedNumbers={markedNumbers}
                                 onNumberClick={handleNumberClick}
+                                color={myTicketColor}
                             />
                         ))}
                     </div>

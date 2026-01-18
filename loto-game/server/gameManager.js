@@ -1,4 +1,4 @@
-const { generateRandomSet } = require('./utils/ticketGenerator');
+const { getAllTicketSets } = require('./utils/ticketGenerator');
 
 class GameManager {
     constructor(io) {
@@ -14,14 +14,15 @@ class GameManager {
     createRoom(hostSocketId) {
         const roomId = this.generateRoomId();
 
-        const availableSets = [];
-        for (let i = 1; i <= 30; i++) {
-            availableSets.push({
-                id: i,
-                data: generateRandomSet(),
-                isTaken: false
-            });
-        }
+        // Get all 30 ticket sets (16 predefined + 14 random)
+        const allSets = getAllTicketSets();
+        const availableSets = allSets.map(set => ({
+            id: set.id,
+            name: set.name,
+            color: set.color,
+            data: set.data,
+            isTaken: false
+        }));
 
         this.rooms.set(roomId, {
             id: roomId,
@@ -190,7 +191,7 @@ class GameManager {
         // Speed: 5 seconds per number?
         room.drawInterval = setInterval(() => {
             this.drawNumber(roomId);
-        }, 4000);
+        }, 500);
     }
 
     drawNumber(roomId) {

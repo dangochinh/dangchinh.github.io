@@ -16,6 +16,7 @@ const HostRoom = () => {
     const [lastWinner, setLastWinner] = useState(null);
     const [voiceLang, setVoiceLang] = useState('vi');
     const [winHistory, setWinHistory] = useState([]);
+    const [showToast, setShowToast] = useState(false);
 
     useEffect(() => {
         if (!socket || !roomId) {
@@ -96,11 +97,18 @@ const HostRoom = () => {
 
     const copyRoomId = () => {
         navigator.clipboard.writeText(roomId);
-        alert('Copied ID!');
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 2000);
     };
 
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-white">
+            {/* Toast Notification */}
+            {showToast && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg font-bold animate-fade-in">
+                    ✓ Copied ID!
+                </div>
+            )}
             <header className="bg-slate-800 p-4 shadow-md flex justify-between items-center z-10">
                 <div className="flex items-center gap-4">
                     <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
