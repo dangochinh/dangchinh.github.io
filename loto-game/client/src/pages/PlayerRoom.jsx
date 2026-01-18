@@ -18,6 +18,7 @@ const PlayerRoom = () => {
     const [drawnHistory, setDrawnHistory] = useState(initialRoomData?.numbersDrawn || []);
     const [winHistory, setWinHistory] = useState(initialRoomData?.winHistory || []);
     const [showHistory, setShowHistory] = useState(false);
+    const [isReady, setIsReady] = useState(false);
 
     const [isSelecting, setIsSelecting] = useState(false);
 
@@ -80,12 +81,34 @@ const PlayerRoom = () => {
     const handleNumberClick = (num) => {
         if (gameState !== 'PLAYING') return;
 
-        // Validation: Can only mark if it has been drawn?
         if (drawnHistory.includes(num)) {
             if (!markedNumbers.includes(num)) {
                 setMarkedNumbers(prev => [...prev, num]);
             }
         }
+    };
+
+    const toggleReady = () => {
+        socket.emit('toggleReady', { roomId }, (res) => {
+            if (res.success) {
+                setIsReady(res.isReady);
+            } else {
+                alert(res.error || 'Failed to toggle ready');
+            }
+        });
+    };
+
+    const changeTicket = () => {
+        // Simple client-side reset? No, need to release on server?
+        // Server selectSet handles releasing old set if we pick a new one. 
+        // But for UI flow, let's just reset local state to allow picking again.
+        // Or strictly call text "Change Number" implies picking new one.
+        // We can just unset myTickets and let them pick again.
+        // Ideally we should tell server we "unselected" but selectSet overwrites anyway.
+        setMyTickets(null);
+        setIsReady(false);
+        // Note: The previous set remains "taken" until we select a NEW one in selectSet logic. 
+        // Improvement: We could emit 'releaseSet' but for now standard overwrite is fine.
     };
 
     if (!roomId) return null;
@@ -103,7 +126,11 @@ const PlayerRoom = () => {
                 </div>
                 <div className="flex flex-col items-end">
                     <div className="font-bold">{name}</div>
-                    {myTickets && <div className="text-xs text-green-400">Ready</div>}
+                    {myTickets && (
+                        <div className={clsx("text-xs font-bold", isReady ? "text-green-400" : "text-yellow-400")}>
+                            {isReady ? "READY" : "NOT READY"}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -187,8 +214,38 @@ const PlayerRoom = () => {
                         )}
                     </div>
                 ) : (
-                    /* State: Playing */
+                    /* State: Playing OR Ready to Play */
                     <div className="space-y-6">
+                        {/* Status Bar for Player */}
+                        {gameState === 'WAITING' && (
+                            <div className="bg-slate-800 p-4 rounded-xl flex items-center justify-between border border-slate-700">
+                                <div>
+                                    <p className="text-slate-400 text-sm">Ticket Selected</p>
+                                    <p className="font-bold text-lg">Set #{initialRoomData?.players?.find(p => p.id === socket?.id)?.setId || '?'}</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={changeTicket}
+                                        disabled={isReady}
+                                        className={clsx("px-4 py-2 rounded font-bold text-sm bg-slate-700 hover:bg-slate-600", isReady && "opacity-50 cursor-not-allowed")}
+                                    >
+                                        Change
+                                    </button>
+                                    <button
+                                        onClick={toggleReady}
+                                        className={clsx(
+                                            "px-6 py-2 rounded font-bold transition-all shadow-lg",
+                                            isReady
+                                                ? "bg-green-600 hover:bg-green-700"
+                                                : "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 animate-pulse"
+                                        )}
+                                    >
+                                        {isReady ? "READY!" : "I'M READY"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {myTickets.map((ticketData, idx) => (
                             <Ticket
                                 key={idx}

@@ -131,7 +131,18 @@ const HostRoom = () => {
                 </div>
                 <div className="flex gap-2">
                     {gameState === 'WAITING' && (
-                        <button onClick={() => sendAction('START')} className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-bold">Start Game</button>
+                        <button
+                            onClick={() => sendAction('START')}
+                            disabled={players.length === 0 || !players.every(p => p.isReady)}
+                            className={clsx(
+                                "px-6 py-2 rounded-lg font-bold transition-all",
+                                players.length > 0 && players.every(p => p.isReady)
+                                    ? "bg-green-600 hover:bg-green-700 shadow-lg hover:scale-105"
+                                    : "bg-slate-700 text-slate-500 cursor-not-allowed opacity-50"
+                            )}
+                        >
+                            {players.length === 0 ? "Waiting for players..." : players.every(p => p.isReady) ? "Start Game" : `Waiting (${players.filter(p => p.isReady).length}/${players.length} Ready)`}
+                        </button>
                     )}
                     {gameState === 'PLAYING' && (
                         <button onClick={() => sendAction('PAUSE')} className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-bold">Pause</button>
@@ -183,24 +194,6 @@ const HostRoom = () => {
 
                     </div>
 
-                    {/* Hall of Fame - Always Visible */}
-                    <div className="mt-8 bg-slate-800/50 p-6 rounded-xl max-w-lg mx-auto border border-slate-700">
-                        <h3 className="text-xl font-bold mb-4 text-slate-300">🏆 Hall of Fame (Last 50)</h3>
-                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                            {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
-                                <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded flex-wrap">
-                                    <div className="flex items-center">
-                                        <span className="font-bold text-yellow-400 mr-2">#{win.round}</span>
-                                        <span className="font-bold text-white">{win.name}</span>
-                                    </div>
-                                    <span className="text-xs text-slate-400">{new Date(win.timestamp).toLocaleTimeString()}</span>
-                                </div>
-                            )) : (
-                                <div className="text-center text-slate-500 py-4">No winners yet</div>
-                            )}
-                        </div>
-                    </div>
-
                     <div className="grid grid-cols-10 gap-2 max-w-4xl mx-auto mt-8">
                         {Array.from({ length: 90 }, (_, i) => i + 1).map(num => (
                             <div
@@ -216,6 +209,24 @@ const HostRoom = () => {
                             </div>
                         ))}
                     </div>
+
+                    {/* Hall of Fame - Moved to Bottom */}
+                    <div className="mt-12 bg-slate-800/50 p-6 rounded-xl max-w-lg mx-auto border border-slate-700">
+                        <h3 className="text-xl font-bold mb-4 text-slate-300">🏆 Hall of Fame (Last 50)</h3>
+                        <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                            {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
+                                <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded flex-wrap">
+                                    <div className="flex items-center">
+                                        <span className="font-bold text-yellow-400 mr-2">#{win.round}</span>
+                                        <span className="font-bold text-white">{win.name}</span>
+                                    </div>
+                                    <span className="text-xs text-slate-400">{new Date(win.timestamp).toLocaleTimeString()}</span>
+                                </div>
+                            )) : (
+                                <div className="text-center text-slate-500 py-4">No winners yet</div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right: Players */}
@@ -228,13 +239,18 @@ const HostRoom = () => {
                                     <div className="font-bold">{p.name}</div>
                                     <div className="text-xs text-slate-400">{p.setId ? `Set #${p.setId}` : 'Selecting...'}</div>
                                 </div>
-                                <div className={clsx("w-2 h-2 rounded-full", p.setId ? "bg-green-400" : "bg-yellow-400")}></div>
+                                <div className="flex items-center gap-2">
+                                    {p.isReady && (
+                                        <span className="text-xs font-bold text-green-400 bg-green-900/50 px-2 py-0.5 rounded">READY</span>
+                                    )}
+                                    <div className={clsx("w-2 h-2 rounded-full", p.setId ? "bg-green-400" : "bg-yellow-400")}></div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </aside>
-            </main >
-        </div >
+            </main>
+        </div>
     );
 };
 

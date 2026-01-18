@@ -48,7 +48,10 @@ class GameManager {
             id: playerSocketId,
             name: playerName,
             setId: null,
-            tickets: null
+            name: playerName,
+            setId: null,
+            tickets: null,
+            isReady: false
         };
         room.players.push(player);
         return {
@@ -96,8 +99,29 @@ class GameManager {
     startGame(roomId) {
         const room = this.rooms.get(roomId);
         if (!room) return;
+
+        // Check if all players are ready
+        const allReady = room.players.every(p => p.isReady);
+        if (room.players.length === 0) return; // Can't start empty
+        if (!allReady) return { error: 'Not all players are ready' };
+
         room.gameState = 'PLAYING';
         this.startDrawLoop(roomId);
+        return { success: true };
+    }
+
+    toggleReady(roomId, playerId) {
+        const room = this.rooms.get(roomId);
+        if (!room) return;
+
+        const player = room.players.find(p => p.id === playerId);
+        if (!player) return;
+
+        // Can only toggle if picked a set
+        if (!player.setId) return { error: 'Must select a ticket first' };
+
+        player.isReady = !player.isReady;
+        return { success: true, isReady: player.isReady, players: room.players };
     }
 
     pauseGame(roomId) {
@@ -132,6 +156,7 @@ class GameManager {
         room.players.forEach(p => {
             p.tickets = null;
             p.setId = null;
+            p.isReady = false;
         });
 
         // Reset available sets

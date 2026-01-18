@@ -52,12 +52,29 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('action', ({ roomId, action }) => {
+    socket.on('toggleReady', ({ roomId }, callback) => {
+        const res = gameManager.toggleReady(roomId, socket.id);
+        if (res && res.success) {
+            if (callback) callback({ success: true, isReady: res.isReady });
+            const room = gameManager.rooms.get(roomId);
+            io.to(roomId).emit('playerUpdated', room.players);
+        } else {
+            if (callback) callback({ error: res ? res.error : 'Failed' });
+        }
+    });
+
+    socket.on('action', ({ roomId, action }, callback) => {
         // Host actions
         const room = gameManager.rooms.get(roomId);
         if (!room || room.hostId !== socket.id) return;
 
-        if (action === 'START') gameManager.startGame(roomId);
+        if (action === 'START') {
+            const res = gameManager.startGame(roomId);
+            if (res && res.error) {
+                // Notify host of error (optional, checking via UI is better)
+                return;
+            }
+        }
         if (action === 'PAUSE') gameManager.pauseGame(roomId);
         if (action === 'RESUME') gameManager.resumeGame(roomId);
         if (action === 'RESTART') gameManager.restartGame(roomId);
