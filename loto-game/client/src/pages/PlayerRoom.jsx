@@ -90,18 +90,22 @@ const PlayerRoom = () => {
                 {/* Current Number Display */}
                 {gameState === 'PLAYING' && (
                     <div className="mb-6 flex justify-center sticky top-20 z-10">
-                        <div className="flex items-center gap-4 bg-slate-800/80 p-4 rounded-full backdrop-blur-sm border border-slate-600">
+                        <div className="flex items-center gap-4 bg-slate-800/80 p-4 rounded-full backdrop-blur-sm border border-slate-600 overflow-x-auto max-w-full">
                             {/* Previous */}
                             <div className="flex gap-2 opacity-60">
-                                {drawnHistory[drawnHistory.length - 2] && (
-                                    <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border border-slate-500">
-                                        <span className="text-lg text-slate-400">{drawnHistory[drawnHistory.length - 2]}</span>
-                                    </div>
-                                )}
+                                {Array.from({ length: 5 }).map((_, i) => {
+                                    const idx = drawnHistory.length - (6 - i);
+                                    if (idx < 0) return null;
+                                    return (
+                                        <div key={i} className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-500">
+                                            <span className="text-sm text-slate-400">{drawnHistory[idx]}</span>
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             {/* Current */}
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-lg ring-4 ring-white/10 animate-pulse">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-lg ring-4 ring-white/10 animate-pulse flex-shrink-0">
                                 <span className="text-4xl font-bold">{currentNumber || '-'}</span>
                             </div>
                         </div>

@@ -14,6 +14,7 @@ const HostRoom = () => {
     const [numbersDrawn, setNumbersDrawn] = useState([]);
     const [currentNumber, setCurrentNumber] = useState(null);
     const [lastWinner, setLastWinner] = useState(null);
+    const [voiceLang, setVoiceLang] = useState('vi');
 
     useEffect(() => {
         if (!socket || !roomId) {
@@ -56,8 +57,23 @@ const HostRoom = () => {
 
     const speakNumber = (num) => {
         if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(`Số ${num}`);
-            utterance.lang = 'vi-VN'; // Vietnamese
+            const text = voiceLang === 'vi' ? `Số ${num}` : `Number ${num}`;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = voiceLang === 'vi' ? 'vi-VN' : 'en-US';
+
+            const voices = window.speechSynthesis.getVoices();
+            let selectedVoice;
+
+            if (voiceLang === 'vi') {
+                selectedVoice = voices.find(voice => voice.lang.includes('vi') || voice.lang.includes('VN'));
+            } else {
+                selectedVoice = voices.find(voice => voice.lang.includes('en-US') && !voice.name.includes('Zira'));
+            }
+
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+
             window.speechSynthesis.speak(utterance);
         }
     };
@@ -86,6 +102,20 @@ const HostRoom = () => {
                     )}>
                         {gameState}
                     </span>
+                    <div className="flex bg-slate-700/50 rounded-lg p-0.5 border border-slate-600">
+                        <button
+                            onClick={() => setVoiceLang('vi')}
+                            className={clsx("px-3 py-1.5 rounded font-bold text-xs transition-colors", voiceLang === 'vi' ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-slate-300")}
+                        >
+                            VI
+                        </button>
+                        <button
+                            onClick={() => setVoiceLang('en')}
+                            className={clsx("px-3 py-1.5 rounded font-bold text-xs transition-colors", voiceLang === 'en' ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-slate-300")}
+                        >
+                            EN
+                        </button>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     {gameState === 'WAITING' && (
@@ -108,16 +138,15 @@ const HostRoom = () => {
                         {currentNumber && (
                             <div className="flex items-center gap-6">
                                 <div className="flex gap-2 opacity-60">
-                                    {numbersDrawn[numbersDrawn.length - 3] && (
-                                        <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center border-2 border-slate-600">
-                                            <span className="text-2xl text-slate-400">{numbersDrawn[numbersDrawn.length - 3]}</span>
-                                        </div>
-                                    )}
-                                    {numbersDrawn[numbersDrawn.length - 2] && (
-                                        <div className="w-20 h-20 rounded-full bg-slate-600 flex items-center justify-center border-2 border-slate-500">
-                                            <span className="text-3xl text-slate-300">{numbersDrawn[numbersDrawn.length - 2]}</span>
-                                        </div>
-                                    )}
+                                    {Array.from({ length: 5 }).map((_, i) => {
+                                        const idx = numbersDrawn.length - (6 - i); // 5 prev numbers
+                                        if (idx < 0) return null;
+                                        return (
+                                            <div key={i} className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600">
+                                                <span className="text-xl text-slate-400">{numbersDrawn[idx]}</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                                 <div className="relative animate-bounce">
                                     <div className="w-32 h-32 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-2xl ring-4 ring-white/20">
