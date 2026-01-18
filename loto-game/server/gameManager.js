@@ -249,11 +249,12 @@ class GameManager {
     handleBingo(room, winner) {
         this.pauseGame(room.id);
 
-        // Add to history
+        // Add to history with player list
         room.winHistory.push({
             name: winner.name,
             timestamp: new Date(),
-            round: room.winHistory.length + 1
+            round: room.winHistory.length + 1,
+            players: room.players.map(p => ({ name: p.name, setId: p.setId }))
         });
 
         // Cap history at 50

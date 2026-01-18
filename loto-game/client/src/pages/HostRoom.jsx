@@ -101,6 +101,28 @@ const HostRoom = () => {
         setTimeout(() => setShowToast(false), 2000);
     };
 
+    const exportHallOfFame = () => {
+        const data = winHistory.map(game => ({
+            Round: game.round,
+            Winner: game.name,
+            Timestamp: new Date(game.timestamp).toLocaleString(),
+            Players: game.players ? game.players.map(p => `${p.name} (Set ${p.setId})`).join(', ') : 'N/A'
+        }));
+
+        const csv = [
+            ['Round', 'Winner', 'Timestamp', 'Players'],
+            ...data.map(row => [row.Round, row.Winner, row.Timestamp, row.Players])
+        ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `hall-of-fame-${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-slate-900 text-white">
             {/* Toast Notification */}
@@ -220,7 +242,17 @@ const HostRoom = () => {
 
                     {/* Hall of Fame - Moved to Bottom */}
                     <div className="mt-12 bg-slate-800/50 p-6 rounded-xl max-w-lg mx-auto border border-slate-700">
-                        <h3 className="text-xl font-bold mb-4 text-slate-300">🏆 Hall of Fame (Last 50)</h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-slate-300">🏆 Hall of Fame (Last 50)</h3>
+                            {winHistory.length > 0 && (
+                                <button
+                                    onClick={exportHallOfFame}
+                                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                                >
+                                    📥 Export CSV
+                                </button>
+                            )}
+                        </div>
                         <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                             {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded flex-wrap">
