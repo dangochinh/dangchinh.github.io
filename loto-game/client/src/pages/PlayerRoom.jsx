@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import Ticket from '../components/Ticket';
+import WinnerModal from '../components/WinnerModal';
 import clsx from 'clsx';
 
 const PlayerRoom = () => {
@@ -28,6 +29,7 @@ const PlayerRoom = () => {
     const [kinhClickCount, setKinhClickCount] = useState(0);
     const [kinhClickTimer, setKinhClickTimer] = useState(null);
     const [showDrawnNumbers, setShowDrawnNumbers] = useState(false);
+    const [winnerInfo, setWinnerInfo] = useState(null);
 
     const [isSelecting, setIsSelecting] = useState(false);
 
@@ -47,25 +49,27 @@ const PlayerRoom = () => {
 
         socket.on('gameStateChanged', (state) => setGameState(state));
 
-        socket.on('gameEnded', ({ winner, reason }) => {
-            alert(reason === 'BINGO' ? `BINGO! Winner: ${winner}` : 'Game Over');
-            setGameState('ENDED');
-        });
-
-        socket.on('gameRestarted', () => {
+        socket.on('gameRestarted', (data) => {
             setGameState('WAITING');
             setMarkedNumbers([]);
             setCurrentNumber(null);
             setDrawnHistory([]);
             setIsReady(false); // Reset ready state
+            setWinnerInfo(null);
             if (data?.winHistory) setWinHistory(data.winHistory);
-            alert('New Game Started! Please choose your ticket.');
         });
 
         socket.on('gameEnded', ({ winner, reason, winHistory }) => {
-            alert(reason === 'BINGO' ? `BINGO! Winner: ${winner}` : 'Game Over');
+            // alert(reason === 'BINGO' ? `BINGO! Winner: ${winner}` : 'Game Over');
             setGameState('ENDED');
             if (winHistory) setWinHistory(winHistory);
+
+            if (reason === 'BINGO') {
+                setWinnerInfo({
+                    name: winner,
+                    isMe: winner === name
+                });
+            }
         });
 
         socket.on('kinhFailed', ({ playerName, winHistory }) => {
@@ -153,7 +157,8 @@ const PlayerRoom = () => {
                 if (res.error) {
                     alert(`Error: ${res.error}`);
                 } else if (res.success) {
-                    alert('🎉 BINGO! You won!');
+                    // alert('🎉 BINGO! You won!'); // Handled by gameEnded event
+                    console.log('Kinh success');
                 } else {
                     alert(`❌ Kinh sai! ${res.message || 'Your claim is incorrect.'}`);
                 }
@@ -261,6 +266,15 @@ const PlayerRoom = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Winner Pop-up */}
+            {winnerInfo && (
+                <WinnerModal
+                    winnerName={winnerInfo.name}
+                    isMe={winnerInfo.isMe}
+                    onClose={() => setWinnerInfo(null)}
+                />
             )}
 
             <div className="pt-20 max-w-lg mx-auto">
