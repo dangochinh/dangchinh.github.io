@@ -122,6 +122,28 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('gameStateChanged', room.gameState);
     });
 
+    socket.on('kinh', ({ roomId, markedNumbers }, callback) => {
+        const res = gameManager.verifyKinh(roomId, socket.id, markedNumbers);
+
+        if (res.error) {
+            if (callback) callback({ error: res.error });
+            return;
+        }
+
+        const room = gameManager.rooms.get(roomId);
+
+        if (res.success) {
+            // Valid bingo!
+            gameManager.handleBingo(room, res.player);
+            if (callback) callback({ success: true, reason: 'BINGO' });
+        } else {
+            // Kinh sai (false claim)
+            gameManager.handleKinhSai(room, gameManager.rooms.get(roomId).players.find(p => p.id === socket.id));
+            if (callback) callback({ success: false, reason: 'KINH_SAI', message: res.message });
+        }
+    });
+
+
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
         // gameManager.leaveRoom(socket.id);

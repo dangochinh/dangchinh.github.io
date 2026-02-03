@@ -265,10 +265,7 @@ class GameManager {
 
         this.io.to(roomId).emit('numberDrawn', { number: num, history: room.numbersDrawn });
 
-        // Check Bingo?
-        // Actually, usually Players check their own and shout Bingo. 
-        // But Prompt says: \"Hệ thống phải tự động kiểm tra và thông báo 'Bingo' ngay lập tức\".
-        this.checkBingo(room);
+        // Manual verification: Players must call "Kinh" to claim bingo
     }
 
     checkBingo(room) {
@@ -298,6 +295,61 @@ class GameManager {
         }
     }
 
+    verifyKinh(roomId, playerId, markedNumbers) {
+        const room = this.rooms.get(roomId);
+        if (!room) return { error: 'Room not found' };
+
+        const player = room.players.find(p => p.id === playerId);
+        if (!player) return { error: 'Player not found' };
+        if (!player.tickets) return { error: 'No tickets assigned' };
+
+        // Pause the game immediately
+        this.pauseGame(roomId);
+
+        // Validate that all marked numbers are in the drawn history
+        const allDrawn = markedNumbers.every(num => room.numbersDrawn.includes(num));
+        if (!allDrawn) {
+            return {
+                success: false,
+                reason: 'KINH_SAI',
+                message: 'Some marked numbers have not been drawn yet'
+            };
+        }
+
+        // Check if marked numbers form a valid bingo (5 in a row)
+        let hasBingo = false;
+        for (const ticket of player.tickets) {
+            for (let r = 0; r < 3; r++) {
+                let matches = 0;
+                for (let c = 0; c < 9; c++) {
+                    const val = ticket[r][c];
+                    if (val !== 0 && markedNumbers.includes(val)) {
+                        matches++;
+                    }
+                }
+                if (matches === 5) {
+                    hasBingo = true;
+                    break;
+                }
+            }
+            if (hasBingo) break;
+        }
+
+        if (hasBingo) {
+            return {
+                success: true,
+                reason: 'BINGO',
+                player: player
+            };
+        } else {
+            return {
+                success: false,
+                reason: 'KINH_SAI',
+                message: 'Marked numbers do not form a complete row'
+            };
+        }
+    }
+
     handleBingo(room, winner) {
         this.pauseGame(room.id);
 
@@ -305,7 +357,9 @@ class GameManager {
             name: winner.name,
             timestamp: new Date(),
             round: (this.globalWinHistory.length > 0 ? this.globalWinHistory[this.globalWinHistory.length - 1].round : 0) + 1,
-            players: room.players.map(p => ({ name: p.name, setId: p.setId }))
+            players: room.players.map(p => ({ name: p.name, setId: p.setId })),
+            type: 'win',
+            reason: 'BINGO'
         };
 
         // Add to global history
@@ -327,6 +381,34 @@ class GameManager {
             winHistory: room.winHistory
         });
         room.gameState = 'ENDED';
+    }
+
+    handleKinhSai(room, player) {
+        const failRecord = {
+            name: player.name,
+            timestamp: new Date(),
+            round: (this.globalWinHistory.length > 0 ? this.globalWinHistory[this.globalWinHistory.length - 1].round : 0) + 1,
+            players: room.players.map(p => ({ name: p.name, setId: p.setId })),
+            type: 'fail',
+            reason: 'KINH_SAI'
+        };
+
+        // Add to global history
+        this.globalWinHistory.push(failRecord);
+        if (this.globalWinHistory.length > 50) {
+            this.globalWinHistory = this.globalWinHistory.slice(-50);
+        }
+
+        // Update room's win history reference
+        room.winHistory = this.globalWinHistory;
+
+        // Persist to Firestore
+        this.saveWinToFirestore(failRecord);
+
+        this.io.to(room.id).emit('kinhFailed', {
+            playerName: player.name,
+            winHistory: room.winHistory
+        });
     }
 
     endGame(roomId) {

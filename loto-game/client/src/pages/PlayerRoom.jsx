@@ -65,12 +65,18 @@ const PlayerRoom = () => {
             if (winHistory) setWinHistory(winHistory);
         });
 
+        socket.on('kinhFailed', ({ playerName, winHistory }) => {
+            alert(`❌ Kinh sai! ${playerName} made an incorrect claim.`);
+            if (winHistory) setWinHistory(winHistory);
+        });
+
         return () => {
             socket.off('setsUpdated');
             socket.off('numberDrawn');
             socket.off('gameStateChanged');
             socket.off('gameEnded');
             socket.off('gameRestarted');
+            socket.off('kinhFailed');
         }
     }, [socket, roomId, navigate]);
 
@@ -95,12 +101,12 @@ const PlayerRoom = () => {
     };
 
     const handleNumberClick = (num) => {
-        if (gameState !== 'PLAYING') return;
-
-        if (drawnHistory.includes(num)) {
-            if (!markedNumbers.includes(num)) {
-                setMarkedNumbers(prev => [...prev, num]);
-            }
+        // Allow marking in any state (not just PLAYING)
+        // Toggle marking - allow marking/unmarking any number
+        if (markedNumbers.includes(num)) {
+            setMarkedNumbers(prev => prev.filter(n => n !== num));
+        } else {
+            setMarkedNumbers(prev => [...prev, num]);
         }
     };
 
@@ -118,6 +124,27 @@ const PlayerRoom = () => {
         setMyTickets(null);
         setMySetId(null);
         setIsReady(false);
+    };
+
+    const handleKinh = () => {
+        if (markedNumbers.length === 0) {
+            alert('Please mark some numbers first!');
+            return;
+        }
+
+        if (!window.confirm('Are you sure you want to call KINH (Bingo)?')) {
+            return;
+        }
+
+        socket.emit('kinh', { roomId, markedNumbers }, (res) => {
+            if (res.error) {
+                alert(`Error: ${res.error}`);
+            } else if (res.success) {
+                alert('🎉 BINGO! You won!');
+            } else {
+                alert(`❌ Kinh sai! ${res.message || 'Your claim is incorrect.'}`);
+            }
+        });
     };
 
     if (!roomId) return null;
@@ -170,26 +197,25 @@ const PlayerRoom = () => {
 
             <div className="pt-20 max-w-lg mx-auto">
                 {/* Current Number Display */}
-                {/* Current Number Display */}
                 {gameState === 'PLAYING' && (
                     <div className="mb-6 flex justify-center sticky top-20 z-10">
-                        <div className="flex items-center gap-4 bg-slate-800/80 p-4 rounded-full backdrop-blur-sm border border-slate-600 overflow-x-auto max-w-full">
+                        <div className="flex items-center gap-2 sm:gap-4 bg-slate-800/80 p-3 sm:p-4 rounded-full backdrop-blur-sm border border-slate-600 overflow-x-auto max-w-full">
                             {/* Previous */}
-                            <div className="flex gap-2 opacity-60">
+                            <div className="flex gap-1 sm:gap-2 opacity-60">
                                 {Array.from({ length: 5 }).map((_, i) => {
                                     const idx = drawnHistory.length - (6 - i);
                                     if (idx < 0) return null;
                                     return (
-                                        <div key={i} className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-500">
-                                            <span className="text-sm text-slate-400">{drawnHistory[idx]}</span>
+                                        <div key={i} className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-700 flex items-center justify-center border border-slate-500">
+                                            <span className="text-xs sm:text-sm text-slate-400">{drawnHistory[idx]}</span>
                                         </div>
                                     );
                                 })}
                             </div>
 
                             {/* Current */}
-                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-lg ring-4 ring-white/10 animate-pulse flex-shrink-0">
-                                <span className="text-4xl font-bold">{currentNumber || '-'}</span>
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-lg ring-4 ring-white/10 animate-pulse flex-shrink-0">
+                                <span className="text-2xl sm:text-3xl font-bold">{currentNumber || '-'}</span>
                             </div>
                         </div>
                     </div>
@@ -264,6 +290,29 @@ const PlayerRoom = () => {
                                 color={myTicketColor}
                             />
                         ))}
+
+                        {/* Kinh Button - Always visible when player has tickets */}
+                        {myTickets && (
+                            <div className="fixed bottom-0 left-0 right-0 bg-slate-800/95 p-4 border-t border-slate-700 backdrop-blur-sm z-20">
+                                <div className="max-w-lg mx-auto flex gap-3 items-center">
+                                    <div className="flex-1 text-sm text-slate-300">
+                                        Marked: <span className="font-bold text-yellow-400">{markedNumbers.length}</span> numbers
+                                    </div>
+                                    <button
+                                        onClick={handleKinh}
+                                        disabled={markedNumbers.length === 0 || gameState !== 'PLAYING'}
+                                        className={clsx(
+                                            "px-8 py-3 rounded-lg font-bold text-lg transition-all shadow-lg",
+                                            markedNumbers.length > 0 && gameState === 'PLAYING'
+                                                ? "bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white animate-pulse"
+                                                : "bg-slate-700 text-slate-500 cursor-not-allowed"
+                                        )}
+                                    >
+                                        🎯 KINH!
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

@@ -49,6 +49,10 @@ const HostRoom = () => {
             if (winHistory) setWinHistory(winHistory);
         });
 
+        socket.on('kinhFailed', ({ playerName, winHistory }) => {
+            if (winHistory) setWinHistory(winHistory);
+        });
+
         socket.on('gameRestarted', (data) => {
             setGameState('WAITING');
             setNumbersDrawn([]);
@@ -65,6 +69,7 @@ const HostRoom = () => {
             socket.off('gameStateChanged');
             socket.off('gameEnded');
             socket.off('gameRestarted');
+            socket.off('kinhFailed');
         }
     }, [socket, roomId, navigate]);
 
@@ -198,21 +203,21 @@ const HostRoom = () => {
                 <div className="flex-1 p-6 overflow-y-auto">
                     <div className="flex justify-center mb-8">
                         {currentNumber && (
-                            <div className="flex items-center gap-6">
-                                <div className="flex gap-2 opacity-60">
+                            <div className="flex items-center gap-3 sm:gap-6">
+                                <div className="flex gap-1 sm:gap-2 opacity-60">
                                     {Array.from({ length: 5 }).map((_, i) => {
                                         const idx = numbersDrawn.length - (6 - i); // 5 prev numbers
                                         if (idx < 0) return null;
                                         return (
-                                            <div key={i} className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600">
-                                                <span className="text-xl text-slate-400">{numbersDrawn[idx]}</span>
+                                            <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-slate-700 flex items-center justify-center border border-slate-600">
+                                                <span className="text-sm sm:text-lg text-slate-400">{numbersDrawn[idx]}</span>
                                             </div>
                                         );
                                     })}
                                 </div>
                                 <div className="relative animate-bounce">
-                                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-2xl ring-4 ring-white/20">
-                                        <span className="text-6xl font-bold">{currentNumber}</span>
+                                    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center shadow-2xl ring-4 ring-white/20">
+                                        <span className="text-3xl sm:text-4xl md:text-5xl font-bold">{currentNumber}</span>
                                     </div>
                                 </div>
                             </div>
@@ -265,9 +270,13 @@ const HostRoom = () => {
                         <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                             {winHistory.length > 0 ? winHistory.slice().reverse().map((win, idx) => (
                                 <div key={idx} className="flex justify-between items-center p-3 bg-slate-700/50 rounded flex-wrap">
-                                    <div className="flex items-center">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg">{win.type === 'win' ? '✅' : '❌'}</span>
                                         <span className="font-bold text-yellow-400 mr-2">#{win.round}</span>
                                         <span className="font-bold text-white">{win.name}</span>
+                                        {win.type === 'fail' && (
+                                            <span className="text-xs text-red-400 ml-2">(Kinh sai)</span>
+                                        )}
                                     </div>
                                     <span className="text-xs text-slate-400">{new Date(win.timestamp).toLocaleTimeString()}</span>
                                 </div>
