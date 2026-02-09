@@ -1,47 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSocket } from '../context/SocketContext';
 
 const Home = () => {
-    const socket = useSocket();
     const navigate = useNavigate();
     const [roomId, setRoomId] = useState('');
     const [name, setName] = useState('');
 
     const createRoom = () => {
-        console.log('Host New Game clicked');
-        if (!socket) {
-            console.error('Socket is null');
-            alert('Server connection is not established yet. Please wait...');
-            return;
-        }
-        console.log('Emitting createRoom event...');
-        socket.emit('createRoom', {}, (response) => {
-            console.log('createRoom response:', response);
-            if (response && response.roomId) {
-                navigate('/host', { state: { roomId: response.roomId } });
-            } else {
-                console.error('Invalid response from server:', response);
-            }
-        });
+        // Generate a random room ID
+        const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        console.log('Hosting new game:', newRoomId);
+        navigate('/host', { state: { roomId: newRoomId } });
     };
 
     const joinRoom = (e) => {
         e.preventDefault();
-        if (!roomId || !name || !socket) return;
+        if (!roomId || !name) return;
 
-        socket.emit('joinRoom', { roomId: roomId.toUpperCase(), playerName: name }, (response) => {
-            if (response.error) {
-                alert(response.error);
-            } else {
-                // Pass the room data to PlayerRoom so it can render sets immediately
-                navigate('/play', {
-                    state: {
-                        roomId: roomId.toUpperCase(),
-                        name,
-                        initialRoomData: response.room
-                    }
-                });
+        // Navigate to player room - connection handled there
+        navigate('/play', {
+            state: {
+                roomId: roomId.toUpperCase(),
+                name
             }
         });
     };
