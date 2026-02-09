@@ -16,6 +16,7 @@ export const useHostGame = (roomId) => {
     const playersRef = useRef(players);
     const numbersDrawnRef = useRef(numbersDrawn);
     const winHistoryRef = useRef(winHistory);
+    const failuresRef = useRef([]); // Track failures in current round
     const drawIntervalRef = useRef(null);
     const channelRef = useRef(null);
 
@@ -116,6 +117,7 @@ export const useHostGame = (roomId) => {
         setGameState('WAITING');
         setNumbersDrawn([]);
         setCurrentNumber(null);
+        failuresRef.current = []; // Clear failures
 
         // Reset players ready state
         const resetPlayers = playersRef.current.map(p => ({ ...p, isReady: false }));
@@ -158,14 +160,19 @@ export const useHostGame = (roomId) => {
             if (hasBingo) break;
         }
 
+        // Calculate current round based on number of wins
+        const currentRound = winHistoryRef.current.filter(r => r.type === 'win').length + 1;
+
         if (hasBingo) {
             // Bingo!
             const winRecord = {
                 name: player.name,
                 timestamp: new Date(),
-                round: winHistoryRef.current.length + 1,
+                round: currentRound,
                 reason: 'BINGO',
-                type: 'win'
+                type: 'win',
+                players: JSON.parse(JSON.stringify(playersRef.current)),
+                failures: [...failuresRef.current] // Include failures in history
             };
             const newHistory = [...winHistoryRef.current, winRecord];
             setWinHistory(newHistory); // In memory
@@ -177,6 +184,7 @@ export const useHostGame = (roomId) => {
                 winHistory: newHistory
             });
             setGameState('ENDED');
+            failuresRef.current = []; // Reset failures for next game
 
             // Show popup to Host
             setVerificationPopup({
@@ -192,11 +200,27 @@ export const useHostGame = (roomId) => {
             const failRecord = {
                 name: player.name,
                 timestamp: new Date(),
-                round: winHistory.length + 1,
+                round: currentRound,
                 reason: 'KINH_SAI',
                 type: 'fail'
             };
-            const newHistory = [...winHistory, failRecord];
+
+            // Track failure for this round
+            failuresRef.current.push(failRecord);
+
+            // We don't necessarily need to add to global winHistory immediately if we only want it in the final record,
+            // BUT the user might want a log of "events". 
+            // The current implementation adds "failRecord" to `winHistory` directly.
+            // If we keep doing that, the CSV will have rows for "KINH_SAI".
+            // The request was "History ghi lại lịch sử của tất cả những ng kinh sai + người chơi của ván đó".
+            // And "file CSV cũng ghi nhận thông tin tương tự".
+
+            // If we add it to `winHistory`, it appears as a row.
+            // If we ALSO add it to `winRecord` of the winner, it appears in the "Failures" column of the winner's row.
+            // This seems redundant but covers both requests (real-time log vs summary).
+
+            // Let's keep adding to winHistory for real-time log.
+            const newHistory = [...winHistoryRef.current, failRecord];
             setWinHistory(newHistory);
 
             broadcast('kinhFailed', {

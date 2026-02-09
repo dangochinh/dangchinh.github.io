@@ -11,12 +11,14 @@ export const usePlayerGame = (roomId, playerName) => {
     const [winHistory, setWinHistory] = useState([]);
     const [mySetId, setMySetId] = useState(null);
     const [myTickets, setMyTickets] = useState(null);
+    const [error, setError] = useState(null);
 
     // UI Events
     const [lastEvent, setLastEvent] = useState(null); // For showing toasts/alerts/modals
 
     const channelRef = useRef(null);
     const myIdRef = useRef(null); // Store my generated UUID
+    const hostFoundRef = useRef(false);
 
     // Initialize my ID
     useEffect(() => {
@@ -51,6 +53,7 @@ export const usePlayerGame = (roomId, playerName) => {
                 setPlayers(payload);
             })
             .on('broadcast', { event: 'roomDataSync' }, ({ payload }) => {
+                hostFoundRef.current = true;
                 // Determine if this sync is for me or general
                 // For simplicity, we just sync everything
                 setGameState(payload.gameState);
@@ -99,7 +102,12 @@ export const usePlayerGame = (roomId, playerName) => {
                 }
             })
             .on('broadcast', { event: 'gameEnded' }, ({ payload }) => {
+                setGameState('ENDED'); // Update game state first
                 setLastEvent({ type: 'gameEnded', data: payload });
+                // Sync winHistory from host
+                if (payload.winHistory) {
+                    setWinHistory(payload.winHistory);
+                }
             })
             .on('broadcast', { event: 'gameRestarted' }, ({ payload }) => {
                 setGameState(payload.gameState);
@@ -113,6 +121,10 @@ export const usePlayerGame = (roomId, playerName) => {
             })
             .on('broadcast', { event: 'kinhFailed' }, ({ payload }) => {
                 setLastEvent({ type: 'kinhFailed', data: payload });
+                // Sync winHistory from host
+                if (payload.winHistory) {
+                    setWinHistory(payload.winHistory);
+                }
             })
             .on('broadcast', { event: 'unselectSetSuccess' }, ({ payload }) => {
                 if (payload.playerId === myIdRef.current) {
@@ -125,8 +137,18 @@ export const usePlayerGame = (roomId, playerName) => {
                     channelRef.current = channel;
 
                     // Request Join
-                    console.log("Sending join request for:", playerName);
-                    broadcast('joinRequest', { name: playerName, id: myIdRef.current });
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'joinRequest',
+                        payload: { id: myIdRef.current, name: playerName }
+                    });
+
+                    // Timeout check
+                    setTimeout(() => {
+                        if (!hostFoundRef.current) {
+                            setError("Room verification failed. Please check the Room ID or ask the Host if they are online.");
+                        }
+                    }, 3000);
                 }
             });
 
@@ -163,9 +185,8 @@ export const usePlayerGame = (roomId, playerName) => {
         mySetId,
         myTickets,
         lastEvent,
+        error,
         actions: {
-            selectSet,
-            toggleReady,
             selectSet,
             toggleReady,
             sendKinh,

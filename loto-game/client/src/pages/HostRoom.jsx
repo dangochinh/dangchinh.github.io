@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useHostGame } from '../hooks/useHostGame';
 
 const HostRoom = () => {
-    const location = useLocation();
+    const { roomId } = useParams();
     const navigate = useNavigate();
-    const roomId = location.state?.roomId;
 
     // Use our new Supabase Hook
     const {
@@ -33,22 +32,49 @@ const HostRoom = () => {
         }
     }, [roomId, navigate]);
 
+    // Preload voices on mount
+    const [voices, setVoices] = useState([]);
+    useEffect(() => {
+        const loadVoices = () => {
+            const availableVoices = window.speechSynthesis.getVoices();
+            if (availableVoices.length > 0) {
+                setVoices(availableVoices);
+            }
+        };
+
+        // Load voices immediately and also on change event
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+
+        return () => {
+            window.speechSynthesis.onvoiceschanged = null;
+        };
+    }, []);
+
     // Speech synthesis effect
     useEffect(() => {
-        if (currentNumber) {
+        if (currentNumber && gameState === 'PLAYING') {
             speakNumber(currentNumber);
         }
     }, [currentNumber]);
 
+    // Cancel speech when game ends
+    useEffect(() => {
+        if (gameState === 'ENDED' || gameState === 'WAITING') {
+            window.speechSynthesis.cancel();
+        }
+    }, [gameState]);
+
     const speakNumber = (num) => {
-        if ('speechSynthesis' in window) {
+        if ('speechSynthesis' in window && voices.length > 0) {
+            // Cancel any ongoing speech first
+            window.speechSynthesis.cancel();
+
             const text = voiceLang === 'vi' ? `Số ${num}` : `Number ${num}`;
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = voiceLang === 'vi' ? 'vi-VN' : 'en-US';
 
-            const voices = window.speechSynthesis.getVoices();
             let selectedVoice;
-
             if (voiceLang === 'vi') {
                 selectedVoice = voices.find(voice => voice.lang.includes('vi') || voice.lang.includes('VN'));
             } else {
@@ -74,12 +100,13 @@ const HostRoom = () => {
             Round: game.round,
             Winner: game.name,
             Timestamp: new Date(game.timestamp).toLocaleString(),
-            Players: game.players ? game.players.map(p => `${p.name} (Set ${p.setId})`).join(', ') : 'N/A'
+            Players: game.players ? game.players.map(p => `${p.name} (Set ${p.setId})`).join(', ') : 'N/A',
+            Failures: game.failures ? game.failures.map(f => `${f.name} (${new Date(f.timestamp).toLocaleTimeString()})`).join('; ') : 'None'
         }));
 
         const csv = [
-            ['Round', 'Winner', 'Timestamp', 'Players'],
-            ...data.map(row => [row.Round, row.Winner, row.Timestamp, row.Players])
+            ['Round', 'Winner', 'Timestamp', 'Players', 'Failures'],
+            ...data.map(row => [row.Round, row.Winner, row.Timestamp, row.Players, row.Failures])
         ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
         const blob = new Blob([csv], { type: 'text/csv' });

@@ -17,12 +17,14 @@ const Ticket = ({ data, markedNumbers = [], onNumberClick, color }) => {
     // data is 3x9 grid
     const bgColor = colorMap[color] || 'bg-white';
 
+    if (!Array.isArray(data)) return <div className="p-4 text-red-500 bg-white rounded">Invalid Ticket Data</div>;
+
     return (
         <div className={clsx("border-2 border-slate-700 text-slate-900 mb-4 p-2 rounded-lg shadow-lg max-w-2xl mx-auto", bgColor)}>
             <div className="flex flex-col gap-1">
                 {data.map((row, rIdx) => (
                     <div key={rIdx} className="grid grid-cols-9 gap-1 h-12">
-                        {row.map((num, cIdx) => {
+                        {Array.isArray(row) && row.map((num, cIdx) => {
                             const isMarked = markedNumbers.includes(num) && num !== 0;
                             return (
                                 <div

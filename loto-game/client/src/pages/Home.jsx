@@ -10,19 +10,16 @@ const Home = () => {
         // Generate a random room ID
         const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
         console.log('Hosting new game:', newRoomId);
-        navigate('/host', { state: { roomId: newRoomId } });
+        navigate(`/${newRoomId}/host`);
     };
 
     const joinRoom = (e) => {
         e.preventDefault();
         if (!roomId || !name) return;
 
-        // Navigate to player room - connection handled there
-        navigate('/play', {
-            state: {
-                roomId: roomId.toUpperCase(),
-                name
-            }
+        // Navigate to player room with name in state
+        navigate(`/${roomId.toUpperCase()}/play`, {
+            state: { name }
         });
     };
 

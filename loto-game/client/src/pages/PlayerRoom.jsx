@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Ticket from '../components/Ticket';
 import WinnerModal from '../components/WinnerModal';
+import AlertModal from '../components/AlertModal';
 import clsx from 'clsx';
 import { usePlayerGame } from '../hooks/usePlayerGame';
 
 const PlayerRoom = () => {
+    const { roomId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
-    const { roomId, name } = location.state || {}; // initialRoomData not needed as we sync on join
+    const { name } = location.state || {};
 
     const {
         gameState,
@@ -21,7 +23,8 @@ const PlayerRoom = () => {
         mySetId,
         myTickets,
         lastEvent,
-        actions
+        actions,
+        error // Get error from hook
     } = usePlayerGame(roomId, name);
 
     // Derived State for UI
@@ -29,6 +32,7 @@ const PlayerRoom = () => {
     const [showHistory, setShowHistory] = useState(false);
     const [showDrawnNumbers, setShowDrawnNumbers] = useState(false);
     const [winnerInfo, setWinnerInfo] = useState(null);
+    const [alertInfo, setAlertInfo] = useState(null); // For alerts
 
     // Ticket Color
     const [myTicketColor, setMyTicketColor] = useState(null);
@@ -53,7 +57,10 @@ const PlayerRoom = () => {
             }
         } else if (lastEvent.type === 'kinhFailed') {
             const { playerName } = lastEvent.data;
-            alert(`❌ Kinh sai! ${playerName} made an incorrect claim.`);
+            setAlertInfo({
+                message: `Kinh sai rồi! ${playerName} báo kinh nhưng kiểm tra không đúng.`,
+                type: 'error'
+            });
         }
     }, [lastEvent, name]);
 
@@ -62,16 +69,35 @@ const PlayerRoom = () => {
         if (gameState === 'WAITING') {
             setMarkedNumbers([]);
             setWinnerInfo(null);
+            setAlertInfo(null);
         }
     }, [gameState]);
 
 
-    // Redirect if invalid
+    // Redirect if invalid or error
     useEffect(() => {
         if (!roomId || !name) {
-            // navigate('/'); // Commented out for dev, sometimes hot reload kills state
+            navigate('/');
         }
-    }, [roomId, name, navigate]);
+        if (error) {
+            setAlertInfo({ message: error, type: 'error' });
+            // Don't auto-redirect immediately, let user see error? 
+            // Or use the old behavior:
+            // alert(error); navigate('/');
+            // For now, let's keep it simple:
+            // If it's a connection error, we might want to redirect.
+            // But if it's just "Kinh sai", stay here.
+            // The hook error is usually critical/connection related.
+            // For critical errors let's delay redirect or just show modal then redirect on close.
+        }
+    }, [roomId, name, error, navigate]);
+
+    const handleAlertClose = () => {
+        setAlertInfo(null);
+        if (error) {
+            navigate('/');
+        }
+    };
 
     const handleNumberClick = (num) => {
         if (markedNumbers.includes(num)) {
@@ -102,7 +128,7 @@ const PlayerRoom = () => {
     // But keeping simple logic
     const handleKinh = () => {
         if (markedNumbers.length === 0) {
-            alert('Please mark some numbers first!');
+            setAlertInfo({ message: 'Bạn chưa đánh số nào cả!', type: 'warning' });
             return;
         }
         // Direct call
@@ -184,6 +210,9 @@ const PlayerRoom = () => {
             {/* Winner Modal */}
             {winnerInfo && <WinnerModal winnerName={winnerInfo.name} isMe={winnerInfo.isMe} onClose={() => setWinnerInfo(null)} />}
 
+            {/* Alert Modal */}
+            {alertInfo && <AlertModal message={alertInfo.message} type={alertInfo.type} onClose={handleAlertClose} />}
+
             <div className="pt-20 max-w-lg mx-auto">
                 {/* Current Number */}
                 {(gameState === 'PLAYING' || gameState === 'PAUSED') && (
@@ -214,19 +243,44 @@ const PlayerRoom = () => {
                     <div>
                         <h2 className="text-xl font-bold mb-4 text-center">Select Your Ticket Set</h2>
                         <div className="grid grid-cols-5 gap-3">
-                            {availableSets.map((set) => (
-                                <button
-                                    key={set.id}
-                                    disabled={set.isTaken}
-                                    onClick={() => actions.selectSet(set.id)}
-                                    className={clsx(
-                                        "p-4 rounded-lg font-bold text-lg transition-all shadow-md",
-                                        set.isTaken ? "bg-slate-700 text-slate-500 cursor-not-allowed opacity-50" : "bg-gradient-to-br from-blue-500 to-cyan-500 text-white"
-                                    )}
-                                >
-                                    {set.id}
-                                </button>
-                            ))}
+                            {availableSets.map((set) => {
+                                // Color map matching Ticket.jsx backgrounds (rgba with transparency)
+                                const colorMap = {
+                                    red: 'rgba(239, 68, 68, 0.6)',      // red-500/60
+                                    orange: 'rgba(249, 115, 22, 0.6)', // orange-500/60
+                                    purple: 'rgba(168, 85, 247, 0.6)', // purple-500/60
+                                    green: 'rgba(34, 197, 94, 0.6)',   // green-500/60
+                                    blue: 'rgba(59, 130, 246, 0.6)',   // blue-500/60
+                                    yellow: 'rgba(234, 179, 8, 0.6)',  // yellow-500/60
+                                    pink: 'rgba(236, 72, 153, 0.6)',   // pink-500/60
+                                    cyan: 'rgba(6, 182, 212, 0.6)',    // cyan-500/60
+                                    teal: 'rgba(20, 184, 166, 0.6)',   // teal-500/60
+                                    indigo: 'rgba(99, 102, 241, 0.6)', // indigo-500/60
+                                    lime: 'rgba(132, 204, 22, 0.6)'    // lime-500/60
+                                };
+                                const bgColor = colorMap[set.color?.toLowerCase()] || 'rgba(59, 130, 246, 0.6)';
+
+                                const buttonStyle = set.isTaken ? {} : {
+                                    backgroundColor: bgColor
+                                };
+
+                                return (
+                                    <button
+                                        key={set.id}
+                                        disabled={set.isTaken}
+                                        onClick={() => actions.selectSet(set.id)}
+                                        style={buttonStyle}
+                                        className={clsx(
+                                            "p-4 rounded-lg font-bold text-lg transition-all shadow-md",
+                                            set.isTaken
+                                                ? "bg-slate-700 text-slate-500 cursor-not-allowed opacity-50"
+                                                : "text-white hover:scale-105 hover:shadow-lg"
+                                        )}
+                                    >
+                                        {set.id}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 ) : (
@@ -261,7 +315,7 @@ const PlayerRoom = () => {
                             </div>
                         )}
 
-                        {myTickets.map((ticketData, idx) => (
+                        {Array.isArray(myTickets) && myTickets.map((ticketData, idx) => (
                             <Ticket
                                 key={idx}
                                 data={ticketData}
@@ -278,10 +332,12 @@ const PlayerRoom = () => {
                                 </div>
                                 <button
                                     onClick={handleKinh}
-                                    disabled={markedNumbers.length === 0 || (gameState !== 'PLAYING' && gameState !== 'PAUSED')}
+                                    disabled={markedNumbers.length === 0 || gameState === 'ENDED' || winnerInfo !== null || (gameState !== 'PLAYING' && gameState !== 'PAUSED')}
                                     className={clsx(
                                         "px-8 py-3 rounded-lg font-bold text-lg transition-all shadow-lg",
-                                        markedNumbers.length > 0 && (gameState === 'PLAYING' || gameState === 'PAUSED') ? "bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse text-white" : "bg-slate-700 text-slate-500 cursor-not-allowed"
+                                        markedNumbers.length > 0 && !winnerInfo && (gameState === 'PLAYING' || gameState === 'PAUSED')
+                                            ? "bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse text-white"
+                                            : "bg-slate-700 text-slate-500 cursor-not-allowed"
                                     )}
                                 >
                                     🎯 KINH!
