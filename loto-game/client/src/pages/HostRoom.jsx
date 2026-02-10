@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useHostGame } from '../hooks/useHostGame';
+import IntroModal from '../components/IntroModal';
+
+
 
 const HostRoom = () => {
     const { roomId } = useParams();
@@ -24,6 +27,11 @@ const HostRoom = () => {
     const [showAllTickets, setShowAllTickets] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
     const [voiceLang, setVoiceLang] = useState('vi');
+    const [selectedVoiceURI, setSelectedVoiceURI] = useState(''); // Allow specific voice selection
+
+    const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+    const [showIntro, setShowIntro] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
 
     // Navigation safety
     useEffect(() => {
@@ -36,9 +44,16 @@ const HostRoom = () => {
     const [voices, setVoices] = useState([]);
     useEffect(() => {
         const loadVoices = () => {
-            const availableVoices = window.speechSynthesis.getVoices();
+            let availableVoices = window.speechSynthesis.getVoices();
             if (availableVoices.length > 0) {
+                // Initial filter to relevant voices if possible, or just keep all
                 setVoices(availableVoices);
+
+                // Try to auto-select a good Vietnamese voice if not yet selected
+                if (!selectedVoiceURI) {
+                    const viVoice = availableVoices.find(v => v.lang.includes('vi') || v.lang.includes('VN'));
+                    if (viVoice) setSelectedVoiceURI(viVoice.voiceURI);
+                }
             }
         };
 
@@ -56,7 +71,7 @@ const HostRoom = () => {
         if (currentNumber && gameState === 'PLAYING') {
             speakNumber(currentNumber);
         }
-    }, [currentNumber]);
+    }, [currentNumber, voiceLang, voices]);
 
     // Cancel speech when game ends
     useEffect(() => {
@@ -66,7 +81,7 @@ const HostRoom = () => {
     }, [gameState]);
 
     const speakNumber = (num) => {
-        if ('speechSynthesis' in window && voices.length > 0) {
+        if (!isMuted && 'speechSynthesis' in window && voices.length > 0) {
             // Cancel any ongoing speech first
             window.speechSynthesis.cancel();
 
@@ -75,14 +90,28 @@ const HostRoom = () => {
             utterance.lang = voiceLang === 'vi' ? 'vi-VN' : 'en-US';
 
             let selectedVoice;
-            if (voiceLang === 'vi') {
-                selectedVoice = voices.find(voice => voice.lang.includes('vi') || voice.lang.includes('VN'));
-            } else {
-                selectedVoice = voices.find(voice => voice.lang.includes('en-US') && !voice.name.includes('Zira'));
+
+            // 1. Try manually selected voice first
+            if (selectedVoiceURI) {
+                selectedVoice = voices.find(v => v.voiceURI === selectedVoiceURI);
+            }
+
+            // 2. Auto-select based on language if manual selection not valid for current lang or not set
+            if (!selectedVoice || !selectedVoice.lang.includes(voiceLang === 'vi' ? 'vi' : 'en')) {
+                if (voiceLang === 'vi') {
+                    selectedVoice = voices.find(voice => voice.lang.includes('vi') || voice.lang.includes('VN'));
+                    // Fallback to Google Vietnamese or similar if "vi" check failed but name has it (some browsers weirdness)
+                    if (!selectedVoice) selectedVoice = voices.find(v => v.name.includes('Vietnamese') || v.name.includes('Tiếng Việt'));
+                } else {
+                    selectedVoice = voices.find(voice => voice.lang.includes('en-US') && !voice.name.includes('Zira'));
+                }
             }
 
             if (selectedVoice) {
                 utterance.voice = selectedVoice;
+                // console.log(`Speaking "${text}" with voice: ${selectedVoice.name}`);
+            } else {
+                console.warn(`No specific voice found for ${voiceLang}. Using system default.`);
             }
 
             window.speechSynthesis.speak(utterance);
@@ -124,6 +153,17 @@ const HostRoom = () => {
         if (wasKinhSai) {
             actions.resumeGame();
         }
+    };
+
+    // Helper to shorten voice name
+    const formatVoiceName = (voice) => {
+        if (!voice) return 'Default';
+        // Remove common prefixes/suffixes for cleaner UI
+        return voice.name
+            .replace(/^Microsoft |^Google |^Apple /g, '')
+            .replace(/ Online \(Natural\)| Mobile/g, '')
+            .replace(/\s?-\s?.*$/, '') // Remove " - Vietnamese (Vietnam)" etc
+            .trim();
     };
 
     return (
@@ -324,6 +364,84 @@ const HostRoom = () => {
                         {gameState}
                     </span>
 
+                    {/* Language Toggle & Voice Settings */}
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setIsMuted(!isMuted)}
+                            className={clsx("p-1.5 rounded border border-slate-600 transition-colors", isMuted ? "bg-red-900/50 text-red-400 border-red-800" : "bg-slate-700/50 hover:bg-slate-600 text-slate-300")}
+                            title={isMuted ? "Unmute" : "Mute"}
+                        >
+                            {isMuted ? "🔇" : "🔊"}
+                        </button>
+
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+                                className="px-3 py-1.5 rounded border border-slate-600 bg-slate-700/50 hover:bg-slate-600 text-xs font-bold transition-colors flex items-center gap-1"
+                                title="Click to select specific voice"
+                            >
+                                {voiceLang === 'vi' ? '🇻🇳' : '🇺🇸'} <span className="hidden sm:inline">{formatVoiceName(voices.find(v => v.voiceURI === selectedVoiceURI))}</span>
+                            </button>
+
+                            {/* Voice Dropdown */}
+                            {showVoiceSettings && (
+                                <div className="absolute top-full lg:left-0 right-0 mt-2 w-56 bg-slate-800 border border-slate-600 rounded-lg shadow-xl p-2 z-50">
+                                    <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-700">
+                                        <span className="text-xs font-bold text-slate-400">Settings</span>
+                                        <button onClick={() => setShowVoiceSettings(false)} className="text-xs text-slate-500 hover:text-white">✕</button>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2 mb-2">
+                                            <button
+                                                onClick={() => { setVoiceLang('vi'); setShowVoiceSettings(false); }}
+                                                className={clsx("flex-1 py-1 text-xs rounded border font-bold", voiceLang === 'vi' ? "bg-red-900/50 border-red-700 text-red-200" : "border-slate-600 hover:bg-slate-700")}
+                                            >
+                                                🇻🇳 VN
+                                            </button>
+                                            <button
+                                                onClick={() => { setVoiceLang('en'); setShowVoiceSettings(false); }}
+                                                className={clsx("flex-1 py-1 text-xs rounded border font-bold", voiceLang === 'en' ? "bg-blue-900/50 border-blue-700 text-blue-200" : "border-slate-600 hover:bg-slate-700")}
+                                            >
+                                                🇺🇸 EN
+                                            </button>
+                                        </div>
+
+                                        <div className="text-xs text-slate-500 mb-1">Select Voice:</div>
+                                        <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
+                                            <button
+                                                onClick={() => { setSelectedVoiceURI(''); setShowVoiceSettings(false); }}
+                                                className={clsx(
+                                                    "text-left px-2 py-1.5 rounded text-xs transition-colors",
+                                                    selectedVoiceURI === '' ? "bg-cyan-900/50 text-cyan-300 border border-cyan-700/50" : "hover:bg-slate-700 text-slate-300"
+                                                )}
+                                            >
+                                                -- Auto Select --
+                                            </button>
+                                            {voices
+                                                .filter(v => v.lang.includes(voiceLang === 'vi' ? 'vi' : 'en'))
+                                                .map(v => (
+                                                    <button
+                                                        key={v.voiceURI}
+                                                        onClick={() => { setSelectedVoiceURI(v.voiceURI); setShowVoiceSettings(false); }}
+                                                        className={clsx(
+                                                            "text-left px-2 py-1.5 rounded text-xs transition-colors",
+                                                            selectedVoiceURI === v.voiceURI ? "bg-cyan-900/50 text-cyan-300 border border-cyan-700/50" : "hover:bg-slate-700 text-slate-300"
+                                                        )}
+                                                    >
+                                                        {formatVoiceName(v)}
+                                                    </button>
+                                                ))}
+                                            {voices.filter(v => v.lang.includes(voiceLang === 'vi' ? 'vi' : 'en')).length === 0 && (
+                                                <div className="text-xs text-slate-500 italic p-2">No voices found</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Draw Interval */}
                     <div className="flex items-center gap-2 bg-slate-700/50 rounded-lg px-3 py-1.5 border border-slate-600">
                         <label className="text-xs text-slate-400">Interval (s):</label>
@@ -346,6 +464,8 @@ const HostRoom = () => {
                     >
                         📜 History
                     </button>
+
+
                 </div>
                 <div className="flex gap-2">
                     {gameState === 'WAITING' && (
@@ -369,8 +489,15 @@ const HostRoom = () => {
                         <button onClick={actions.resumeGame} className="px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-bold">Resume</button>
                     )}
                     <button onClick={() => navigate('/')} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg">Exit</button>
+                    <button
+                        onClick={() => setShowIntro(true)}
+                        className="w-9 h-9 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-300 hover:to-orange-500 flex items-center justify-center text-white shadow-lg transition-all hover:scale-110 border border-orange-300/50"
+                        title="Hướng dẫn & Ủng hộ"
+                    >
+                        <span className="text-xl font-bold font-serif italic">i</span>
+                    </button>
                 </div>
-            </header>
+            </header >
 
             <main className="flex-1 flex overflow-hidden">
                 {/* Board */}
@@ -427,7 +554,9 @@ const HostRoom = () => {
                     </div>
                 </aside>
             </main>
-        </div>
+            {/* Intro Modal */}
+            {showIntro && <IntroModal onClose={() => setShowIntro(false)} />}
+        </div >
     );
 };
 

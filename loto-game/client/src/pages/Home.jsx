@@ -7,8 +7,8 @@ const Home = () => {
     const [name, setName] = useState('');
 
     const createRoom = () => {
-        // Generate a random room ID
-        const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        // Generate a random 6-digit room ID (numbers only)
+        const newRoomId = String(Math.floor(100000 + Math.random() * 900000));
         console.log('Hosting new game:', newRoomId);
         navigate(`/${newRoomId}/host`);
     };

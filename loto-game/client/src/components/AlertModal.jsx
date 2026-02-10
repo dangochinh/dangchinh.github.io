@@ -1,7 +1,6 @@
 import React from 'react';
 
-const AlertModal = ({ message, onClose, type = 'error' }) => {
-    // Determine styles based on type (error, warning, info)
+const AlertModal = ({ message, onClose, type = 'error', title }) => {
     const styles = {
         error: {
             border: 'border-red-500/50',
@@ -32,7 +31,7 @@ const AlertModal = ({ message, onClose, type = 'error' }) => {
                 </div>
 
                 <h2 className={`text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r ${currentStyle.titleGradient} mb-4`}>
-                    OOPS!
+                    {title || 'OOPS!'}
                 </h2>
 
                 <div className="mb-6">
