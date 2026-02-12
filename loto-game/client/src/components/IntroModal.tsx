@@ -73,9 +73,6 @@ const IntroModal: React.FC<IntroModalProps> = ({ onClose }) => {
                         <p><span className="text-cyan-400">v1.2.2</span> (2026-02-12): Hotfix: Lịch sử vòng đấu được lưu lại tối đa 50 vòng.</p>
                         <p><span className="text-cyan-400">v1.2.1</span> (2026-02-12): Hotfix: Sửa lỗi đồng bộ Bảng Vàng.</p>
                         <p><span className="text-cyan-400">v1.2.0</span> (2026-02-12): Giao diện Mobile mới, Xác nhận thoát game, Sửa lỗi kết nối & Tự động thoát khi mất Host.</p>
-                        <p><span className="text-cyan-400">v1.1.0</span> (2026-02-12): Chuyển đổi TypeScript & Tái cấu trúc code.</p>
-                        <p><span className="text-cyan-400">v1.0.2</span> (2026-02-04): Sửa lỗi crash mobile, cải thiện giao diện.</p>
-                        <p><span className="text-cyan-400">v1.0.1</span> (2026-02-03): Thêm xuất CSV, Giao diện Responsive, Sửa lỗi logic game.</p>
                     </div>
                 </section>
 
