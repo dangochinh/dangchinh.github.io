@@ -1,14 +1,22 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import Modal from './ui/Modal';
+import { PrimaryButton } from './ui/Button';
 
-const WinnerModal = ({ winnerName, onClose, isMe }) => {
+interface WinnerModalProps {
+    winnerName: string;
+    onClose: () => void;
+    isMe: boolean;
+}
+
+const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe }) => {
     useEffect(() => {
         // Trigger confetti
         const duration = 3000;
         const animationEnd = Date.now() + duration;
         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 60 };
 
-        const randomInRange = (min, max) => Math.random() * (max - min) + min;
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
 
         const interval = setInterval(function () {
             const timeLeft = animationEnd - Date.now();
@@ -27,8 +35,14 @@ const WinnerModal = ({ winnerName, onClose, isMe }) => {
     }, []);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="bg-slate-900 border-4 border-yellow-400/50 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl transform animate-scaleIn relative overflow-hidden">
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            title={null}
+            className="border-yellow-400/50"
+            showCloseButton={false}
+        >
+            <div className="text-center relative">
                 {/* Decorative background glow */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-yellow-500/20 blur-3xl rounded-full -z-10"></div>
 
@@ -48,16 +62,16 @@ const WinnerModal = ({ winnerName, onClose, isMe }) => {
                 </div>
 
                 <div className="mt-8">
-                    <button
+                    <PrimaryButton
                         onClick={onClose}
-                        className="w-full py-3 px-6 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold text-lg transform transition-all hover:scale-105 active:scale-95 shadow-lg shadow-violet-500/25 ring-offset-2 ring-offset-slate-900 focus:ring-2 focus:ring-violet-500"
+                        className="w-full text-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-violet-500/25"
                     >
                         Continue
-                    </button>
+                    </PrimaryButton>
                     <p className="mt-4 text-xs text-slate-500">Wait for the host to restart the game</p>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
