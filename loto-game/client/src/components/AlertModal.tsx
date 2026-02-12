@@ -63,7 +63,7 @@ const AlertModal: React.FC<AlertModalProps> = ({
                 <div>
                     {isBingo && (
                         <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 uppercase">
-                            BINGO CONFIRMED!
+                            BINGO CHÍNH XÁC!
                         </h2>
                     )}
                     {isKinhSai && (
@@ -90,11 +90,11 @@ const AlertModal: React.FC<AlertModalProps> = ({
                         onClick={onClose}
                         className={isKinhSai ? "bg-gradient-to-r from-red-600 to-rose-600" : undefined}
                     >
-                        {isBingo ? 'CHÚC MỪNG!' : isKinhSai ? 'LÊU LÊU :D' : 'OK'}
+                        {isBingo ? 'CHÚC MỪNG!' : isKinhSai ? 'Tiếp Tục' : 'OK'}
                     </PrimaryButton>
                     {(isBingo || isKinhSai) && (
                         <p className="mt-2 text-xs text-slate-500">
-                            Game will {isBingo ? 'end' : 'resume'} after closing.
+                            Game sẽ {isBingo ? 'kết thúc' : 'tiếp tục'} sau khi đóng.
                         </p>
                     )}
                 </div>

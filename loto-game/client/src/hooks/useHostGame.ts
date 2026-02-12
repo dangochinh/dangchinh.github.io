@@ -1,45 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { getAllTicketSets } from '../utils/ticketGenerator';
-import { checkForBingo, TicketSet } from '../utils/gameLogic';
+import { checkForBingo } from '../utils/gameLogic';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
-export interface Player {
-    id: string;
-    name: string;
-    setId: number;
-    tickets: TicketSet;
-    isReady: boolean;
-    joinedAt: string;
-}
-
-export interface WinRecord {
-    name: string;
-    timestamp: Date | string;
-    round: number;
-    reason: 'BINGO' | 'KINH_SAI';
-    type: 'win' | 'fail';
-    players?: Player[];
-    failures?: WinRecord[];
-}
-
-export interface VerificationPopup {
-    playerName: string;
-    success: boolean;
-    message: string;
-    markedNumbers: number[];
-    drawnNumbers: number[];
-}
-
-export interface TicketSetInfo {
-    id: number;
-    name: string;
-    color: string;
-    data: TicketSet;
-    isTaken: boolean;
-}
-
-export type GameState = 'WAITING' | 'PLAYING' | 'PAUSED' | 'ENDED';
+import { Player, GameState, WinRecord, VerificationPopup, TicketSetInfo } from '../types';
 
 export const useHostGame = (roomId: string | undefined) => {
     const [gameState, setGameState] = useState<GameState>('WAITING');
@@ -73,7 +37,7 @@ export const useHostGame = (roomId: string | undefined) => {
             id: set.id,
             name: set.name,
             color: set.color,
-            data: set.data as TicketSet,
+            data: set.data,
             isTaken: false
         }));
         setAvailableSets(sets);
@@ -193,7 +157,8 @@ export const useHostGame = (roomId: string | undefined) => {
                 success: true,
                 message: 'Player has BINGO!',
                 markedNumbers, // from client claim
-                drawnNumbers: numbersDrawnRef.current
+                drawnNumbers: numbersDrawnRef.current,
+                playerTickets: player.tickets
             });
 
             broadcast('gameEnded', {
@@ -213,21 +178,35 @@ export const useHostGame = (roomId: string | undefined) => {
             };
 
             failuresRef.current.push(failRecord);
-            // We don't verify update winHistory for fails directly usually, but we track failures
-            // in failuresRef to attach to the eventual winner.
+
+            // Update history immediately for "Kinh Sai"
+            const newHistory = [...winHistoryRef.current, failRecord];
+            setWinHistory(newHistory);
+            winHistoryRef.current = newHistory;
 
             setVerificationPopup({
                 playerName: player.name,
                 success: false,
-                message: 'False Claim (Kinh Sai)!',
+                message: `${player.name} kinh sai! Phạt đi!`,
                 markedNumbers,
-                drawnNumbers: numbersDrawnRef.current
+                drawnNumbers: numbersDrawnRef.current,
+                playerTickets: player.tickets
             });
 
             broadcast('verificationResult', {
                 success: false,
                 playerId: player.id,
-                message: 'KINH SAI! Phạt đi!'
+                message: `${player.name} kinh sai! Phạt đi!`
+            });
+
+            // Sync history to all clients
+            broadcast('roomDataSync', {
+                gameState: gameStateRef.current,
+                numbersDrawn: numbersDrawnRef.current,
+                players: playersRef.current,
+                availableSets: availableSetsRef.current,
+                currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                winHistory: newHistory
             });
         }
     };
@@ -252,8 +231,35 @@ export const useHostGame = (roomId: string | undefined) => {
         channelRef.current = channel;
 
         channel
-            .on('broadcast', { event: 'playerJoined' }, ({ payload }) => {
-                const newPlayer: Player = { ...payload, isReady: false, tickets: [], joinedAt: new Date().toISOString() };
+            .on('broadcast', { event: 'requestJoin' }, ({ payload }) => {
+                // If player already exists, just sync?
+                // Check if player exists by ID
+                if (playersRef.current.some(p => p.id === payload.id)) {
+                    // Maybe update name if changed?
+                    // For now just sync
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'roomDataSync',
+                        payload: {
+                            gameState: gameStateRef.current,
+                            numbersDrawn: numbersDrawnRef.current,
+                            players: playersRef.current,
+                            availableSets: availableSetsRef.current,
+                            currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                            winHistory: winHistoryRef.current
+                        }
+                    });
+                    return;
+                }
+
+                const newPlayer: Player = {
+                    id: payload.id,
+                    name: payload.name,
+                    isReady: false,
+                    setId: -1, // Initialize with invalid ID
+                    tickets: [] as any,
+                    joinedAt: new Date().toISOString()
+                };
 
                 // Assign a set if available
                 const setArg = availableSetsRef.current.find(s => !s.isTaken);
@@ -262,39 +268,119 @@ export const useHostGame = (roomId: string | undefined) => {
                     newPlayer.tickets = setArg.data;
 
                     // Update available sets locally
-                    setAvailableSets(prev => prev.map(s => s.id === setArg.id ? { ...s, isTaken: true } : s));
+                    const updatedSets = availableSetsRef.current.map(s => s.id === setArg.id ? { ...s, isTaken: true } : s);
+                    setAvailableSets(updatedSets);
+                    // Also update ref immediately for next logic
+                    availableSetsRef.current = updatedSets;
 
-                    // Send set info back to player
+                    // Send set info back to player? Not strictly needed if we sync roomDataSync, 
+                    // but logic might expect 'assignSet'
+                    /*
                     channel.send({
                         type: 'broadcast',
                         event: 'assignSet',
                         payload: { playerId: newPlayer.id, set: setArg }
                     });
+                    */
                 }
 
-                setPlayers(prev => [...prev, newPlayer]);
+                const updatedPlayers = [...playersRef.current, newPlayer];
+                setPlayers(updatedPlayers);
 
-                // Sync current state to new player
+                // Sync current state to ALL (including new player)
                 channel.send({
                     type: 'broadcast',
-                    event: 'syncState',
+                    event: 'roomDataSync',
                     payload: {
                         gameState: gameStateRef.current,
                         numbersDrawn: numbersDrawnRef.current,
-                        players: [...playersRef.current, newPlayer],
-                        availableSets: availableSetsRef.current // Send updated availability
+                        players: updatedPlayers,
+                        availableSets: availableSetsRef.current,
+                        currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                        winHistory: winHistoryRef.current
                     }
                 });
             })
-            .on('broadcast', { event: 'playerReady' }, ({ payload }) => {
+            .on('broadcast', { event: 'toggleReady' }, ({ payload }) => {
                 setPlayers(prev => prev.map(p => p.id === payload.playerId ? { ...p, isReady: payload.isReady } : p));
+                // Broadcast update to all
+                channel.send({
+                    type: 'broadcast',
+                    event: 'playerUpdated',
+                    payload: playersRef.current.map(p => p.id === payload.playerId ? { ...p, isReady: payload.isReady } : p)
+                });
             })
             .on('broadcast', { event: 'kinh' }, ({ payload }) => {
                 const { playerId, markedNumbers } = payload;
                 verifyKinh(playerId, markedNumbers);
             })
-            .on('broadcast', { event: 'requestSet' }, () => {
-                // Handle set change request if we implement it
+            .on('broadcast', { event: 'requestSet' }, ({ payload }) => {
+                const { playerId, setId } = payload;
+                const player = playersRef.current.find(p => p.id === playerId);
+                if (!player) return;
+
+                // Check if set is available
+                const targetSet = availableSetsRef.current.find(s => s.id === setId);
+                if (!targetSet || targetSet.isTaken) return; // Already taken or invalid
+
+                // Release old set
+                let updatedSets = [...availableSetsRef.current];
+                if (player.setId !== -1) {
+                    updatedSets = updatedSets.map(s => s.id === player.setId ? { ...s, isTaken: false } : s);
+                }
+
+                // Take new set
+                updatedSets = updatedSets.map(s => s.id === setId ? { ...s, isTaken: true } : s);
+
+                setAvailableSets(updatedSets);
+                availableSetsRef.current = updatedSets;
+
+                // Update player
+                const updatedPlayers = playersRef.current.map(p => p.id === playerId ? { ...p, setId: setId, tickets: targetSet.data } : p);
+                setPlayers(updatedPlayers);
+
+                // Broadcast updates
+                channel.send({
+                    type: 'broadcast',
+                    event: 'roomDataSync',
+                    payload: {
+                        gameState: gameStateRef.current,
+                        numbersDrawn: numbersDrawnRef.current,
+                        players: updatedPlayers,
+                        availableSets: updatedSets,
+                        currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                        winHistory: winHistoryRef.current
+                    }
+                });
+            })
+            .on('broadcast', { event: 'unselectSet' }, ({ payload }) => {
+                const { playerId } = payload;
+                const player = playersRef.current.find(p => p.id === playerId);
+                if (!player) return;
+
+                // Release set
+                if (player.setId !== -1) {
+                    const updatedSets = availableSetsRef.current.map(s => s.id === player.setId ? { ...s, isTaken: false } : s);
+                    setAvailableSets(updatedSets);
+                    availableSetsRef.current = updatedSets;
+
+                    // Update player to have no set
+                    const updatedPlayers = playersRef.current.map(p => p.id === playerId ? { ...p, setId: -1, tickets: [] as any } : p);
+                    setPlayers(updatedPlayers);
+
+                    channel.send({
+                        type: 'broadcast',
+                        event: 'roomDataSync',
+                        payload: {
+                            gameState: gameStateRef.current,
+                            numbersDrawn: numbersDrawnRef.current,
+                            players: updatedPlayers,
+                            availableSets: updatedSets,
+                            currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                            winHistory: winHistoryRef.current
+                        }
+                    });
+                }
             })
             .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
@@ -324,7 +410,46 @@ export const useHostGame = (roomId: string | undefined) => {
             restartGame,
             endGame,
             setVerificationPopup,
-            setDrawInterval: setDrawIntervalSeconds
+            setDrawInterval: setDrawIntervalSeconds,
+            setDrawIntervalSeconds, // Alias for HostRoom.jsx compatibility
+            removePlayer: (playerId: string) => {
+                const player = playersRef.current.find(p => p.id === playerId);
+                if (!player) return;
+
+                // Release set if any
+                if (player.setId !== -1) {
+                    const updatedSets = availableSetsRef.current.map(s => s.id === player.setId ? { ...s, isTaken: false } : s);
+                    setAvailableSets(updatedSets);
+                    availableSetsRef.current = updatedSets;
+                }
+
+                // Remove player
+                const updatedPlayers = playersRef.current.filter(p => p.id !== playerId);
+                setPlayers(updatedPlayers);
+
+                // Broadcast
+                channelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'roomDataSync',
+                    payload: {
+                        gameState: gameStateRef.current,
+                        numbersDrawn: numbersDrawnRef.current,
+                        players: updatedPlayers,
+                        availableSets: availableSetsRef.current,
+                        currentNumber: numbersDrawnRef.current[numbersDrawnRef.current.length - 1] || null,
+                        winHistory: winHistoryRef.current
+                    }
+                });
+
+                // Optionally send specific kick event
+                /*
+                channelRef.current?.send({
+                    type: 'broadcast',
+                    event: 'playerRemoved',
+                    payload: { playerId }
+                });
+                */
+            }
         }
     };
 };

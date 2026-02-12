@@ -1,26 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
-
-// Types (should share with useHostGame but for now redefine or use any if loose)
-export interface Player {
-    id: string;
-    name: string;
-    isReady: boolean;
-    setId: number;
-    tickets: any[]; // TicketSet
-    joinedAt?: string;
-}
-
-export interface TicketSetInfo {
-    id: number;
-    name: string;
-    color: string;
-    data: any[]; // TicketSet
-    isTaken: boolean;
-}
-
-export type GameState = 'WAITING' | 'PLAYING' | 'PAUSED' | 'ENDED';
+import { Player, TicketSetInfo, GameState, TicketSet, WinRecord } from '../types';
+import { generateUUID } from '../utils/uuid';
 
 export const usePlayerGame = (roomId: string | undefined, playerName: string | undefined) => {
     const [gameState, setGameState] = useState<GameState>('WAITING');
@@ -29,29 +11,22 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
     const [isReady, setIsReady] = useState<boolean>(false);
     const [numbersDrawn, setNumbersDrawn] = useState<number[]>([]);
     const [currentNumber, setCurrentNumber] = useState<number | null>(null);
-    const [winHistory, setWinHistory] = useState<any[]>([]);
+    const [winHistory, setWinHistory] = useState<WinRecord[]>([]);
     const [mySetId, setMySetId] = useState<number | null>(null);
-    const [myTickets, setMyTickets] = useState<any[] | null>(null);
-    const [error] = useState<string | null>(null);
+    const [myTickets, setMyTickets] = useState<TicketSet | null>(null);
+
+    const [error, setError] = useState<string | null>(null);
     const [lastEvent, setLastEvent] = useState<any>(null); // For toasts/alerts
+    const [isHostConnected, setIsHostConnected] = useState<boolean>(true); // Assume true initially or wait for sync
+    const [isConnecting, setIsConnecting] = useState<boolean>(true);
 
     const channelRef = useRef<RealtimeChannel | null>(null);
     const myIdRef = useRef<string | null>(null);
     const hostFoundRef = useRef<boolean>(false);
+    const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Initialize my ID
     useEffect(() => {
-        const generateUUID = () => {
-            if (window.crypto && window.crypto.randomUUID) {
-                return window.crypto.randomUUID();
-            }
-            // Fallback
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        };
-
         let id = sessionStorage.getItem('bingo_player_id');
         if (!id) {
             id = generateUUID();
@@ -74,9 +49,30 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
 
         channelRef.current = channel;
 
+        // Start connection timeout
+        connectionTimeoutRef.current = setTimeout(() => {
+            if (!hostFoundRef.current) {
+                setError("Không tìm thấy phòng hoặc Chủ phòng không online!");
+                setIsConnecting(false);
+            }
+        }, 5000);
+
         channel
+            .on('presence', { event: 'sync' }, () => {
+                const state = channel.presenceState();
+                const hasHost = 'host' in state; // Host uses key 'host'
+                setIsHostConnected(hasHost);
+
+                // If we found host via presence, ensuring we don't timeout if roomDataSync is slightly delayed
+                if (hasHost) {
+                    // hostFoundRef.current = true; // Wait for data sync to be sure? No, presence is enough for "Room Exists" check usually
+                }
+            })
             .on('broadcast', { event: 'roomDataSync' }, ({ payload }) => {
                 hostFoundRef.current = true;
+                if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+                setIsHostConnected(true);
+                setIsConnecting(false);
                 setGameState(payload.gameState);
                 setAvailableSets(payload.availableSets);
                 setPlayers(payload.players);
@@ -101,6 +97,24 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             .on('broadcast', { event: 'gameStateChanged' }, ({ payload }) => {
                 setGameState(payload);
             })
+            .on('broadcast', { event: 'gameEnded' }, ({ payload }) => {
+                setGameState('ENDED');
+                setLastEvent({ type: 'gameEnded', data: payload });
+            })
+            .on('broadcast', { event: 'gameRestarted' }, ({ payload }) => {
+                setGameState(payload.gameState);
+                setPlayers(payload.players);
+                setWinHistory(payload.winHistory);
+                setNumbersDrawn([]);
+                setCurrentNumber(null);
+                setLastEvent(null);
+                // Reset ready state if needed, though payload.players should handled it
+                // Check me
+                const me = payload.players.find((p: Player) => p.id === myIdRef.current);
+                if (me) {
+                    setIsReady(me.isReady);
+                }
+            })
             .on('broadcast', { event: 'setsUpdated' }, ({ payload }) => {
                 setAvailableSets(payload);
             })
@@ -116,9 +130,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             .on('broadcast', { event: 'verificationResult' }, ({ payload }) => {
                 if (payload.playerId === myIdRef.current) {
                     // Handle verification result for me
-                    if (!payload.success) {
-                        alert(`LỖI: ${payload.message}`); // Replace with better UI later
-                    }
+                    // PlayerRoom handles UI based on lastEvent
                 }
                 setLastEvent({ type: 'verification', ...payload });
             })
@@ -137,6 +149,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             });
 
         return () => {
+            if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
             supabase.removeChannel(channel);
             channelRef.current = null;
         };
@@ -149,7 +162,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
     }, [roomId, playerName, joinRoom]);
 
 
-    const selectTicketSet = (setId: number) => {
+    const selectSet = (setId: number) => {
         if (!channelRef.current) return;
         channelRef.current.send({
             type: 'broadcast',
@@ -176,6 +189,15 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
         });
     };
 
+    const leaveSeat = () => {
+        if (!channelRef.current) return;
+        channelRef.current.send({
+            type: 'broadcast',
+            event: 'unselectSet',
+            payload: { playerId: myIdRef.current }
+        });
+    };
+
     const closeVerificationPopup = () => {
         setLastEvent(null);
     };
@@ -193,10 +215,14 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
         error,
         lastEvent,
         actions: {
-            selectTicketSet,
+            selectSet,
             toggleReady,
             claimBingo,
+            sendKinh: claimBingo, // Alias for backward compatibility if needed
+            leaveSeat,
             closeVerificationPopup
-        }
+        },
+        isHostConnected,
+        isConnecting
     };
 };

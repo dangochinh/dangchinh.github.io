@@ -55,9 +55,9 @@ const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe }) 
                 </h2>
 
                 <div className="my-8">
-                    <p className="text-slate-400 text-lg mb-2">The winner is</p>
+                    <p className="text-slate-400 text-lg mb-2">Người chiến thắng là</p>
                     <div className="text-3xl font-bold text-white break-words p-2 bg-slate-800/50 rounded-lg border border-slate-700">
-                        {isMe ? "YOU! 🏆" : winnerName}
+                        {isMe ? "BẠN! 🏆" : winnerName}
                     </div>
                 </div>
 
@@ -66,9 +66,9 @@ const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe }) 
                         onClick={onClose}
                         className="w-full text-lg bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 shadow-violet-500/25"
                     >
-                        Continue
+                        Tiếp Tục
                     </PrimaryButton>
-                    <p className="mt-4 text-xs text-slate-500">Wait for the host to restart the game</p>
+                    <p className="mt-4 text-xs text-slate-500">Vui lòng đợi Host bắt đầu ván mới</p>
                 </div>
             </div>
         </Modal>
