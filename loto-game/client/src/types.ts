@@ -2,7 +2,7 @@ export type TicketRow = number[];
 export type TicketGrid = TicketRow[]; // 5 rows of 9 numbers (0 for empty)
 export type TicketSet = TicketGrid[]; // Usually 6 tickets per set
 
-export type GameState = 'WAITING' | 'PLAYING' | 'PAUSED' | 'ENDED';
+export type GameState = 'WAITING' | 'PLAYING' | 'PAUSED' | 'ENDED' | 'BINGO_WINDOW';
 
 export interface Player {
     id: string;
@@ -23,6 +23,7 @@ export interface TicketSetInfo {
 
 export interface WinRecord {
     name: string;
+    coWinners?: string[];  // Other players who also had valid Bingo
     timestamp: Date | string;
     round: number;
     reason: 'BINGO' | 'KINH_SAI';

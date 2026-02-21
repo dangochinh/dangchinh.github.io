@@ -39,10 +39,10 @@ const PlayerRoom: React.FC = () => {
         myTickets,
         lastEvent,
         actions,
-
         error,
         isHostConnected,
-        isConnecting
+        isConnecting,
+        coWinners
     } = usePlayerGame(roomId, finalName);
 
     // Derived State for UI
@@ -53,6 +53,7 @@ const PlayerRoom: React.FC = () => {
     interface WinnerInfo {
         name: string;
         isMe: boolean;
+        coWinners?: string[];
     }
     const [winnerInfo, setWinnerInfo] = useState<WinnerInfo | null>(null);
 
@@ -78,11 +79,12 @@ const PlayerRoom: React.FC = () => {
         if (!lastEvent) return;
 
         if (lastEvent.type === 'gameEnded') {
-            const { winner, reason } = lastEvent.data;
+            const { winner, reason, coWinners: eventCoWinners } = lastEvent.data;
             if (reason === 'BINGO') {
                 setWinnerInfo({
-                    name: winner.name, // Ensure winner object has name
-                    isMe: winner.name === finalName
+                    name: winner.name,
+                    isMe: winner.name === finalName || (eventCoWinners && eventCoWinners.includes(finalName)),
+                    coWinners: eventCoWinners
                 });
             }
         } else if (lastEvent.type === 'verification') {
@@ -339,8 +341,18 @@ const PlayerRoom: React.FC = () => {
                 </div>
             )}
 
+            {/* BINGO_WINDOW Banner */}
+            {gameState === 'BINGO_WINDOW' && lastEvent?.type === 'bingoConfirmed' && (
+                <div className="fixed top-14 left-0 right-0 z-40 bg-yellow-500 text-black text-center py-2 font-bold text-sm animate-pulse px-3">
+                    🏆 {lastEvent.data.winner.name} BINGO! Bạn có Bingo trùng không? Bấm KINH ngay!
+                    {coWinners.length > 0 && (
+                        <span className="ml-2 text-xs">({coWinners.join(', ')} cũng trùng)</span>
+                    )}
+                </div>
+            )}
+
             {/* Winner Modal */}
-            {winnerInfo && <WinnerModal winnerName={winnerInfo.name} isMe={winnerInfo.isMe} onClose={() => setWinnerInfo(null)} />}
+            {winnerInfo && <WinnerModal winnerName={winnerInfo.name} isMe={winnerInfo.isMe} coWinners={winnerInfo.coWinners} onClose={() => setWinnerInfo(null)} />}
 
             {/* Alert Modal */}
             {alertInfo && <AlertModal message={alertInfo.message} type={alertInfo.type} onClose={handleAlertClose} />}
@@ -504,11 +516,13 @@ const PlayerRoom: React.FC = () => {
                                     {/* KINH Button */}
                                     <button
                                         onClick={handleKinh}
-                                        disabled={markedNumbers.length === 0 || gameState === 'ENDED' || winnerInfo !== null || (gameState !== 'PLAYING' && gameState !== 'PAUSED')}
+                                        disabled={markedNumbers.length === 0 || gameState === 'ENDED' || winnerInfo !== null || (gameState !== 'PLAYING' && gameState !== 'PAUSED' && gameState !== 'BINGO_WINDOW')}
                                         className={clsx(
                                             "flex-1 max-w-[200px] py-4 rounded-xl font-bold text-xl transition-all",
-                                            markedNumbers.length > 0 && !winnerInfo && (gameState === 'PLAYING' || gameState === 'PAUSED')
-                                                ? "bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white shadow-lg shadow-orange-500/30 animate-pulse"
+                                            markedNumbers.length > 0 && !winnerInfo && (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'BINGO_WINDOW')
+                                                ? gameState === 'BINGO_WINDOW'
+                                                    ? "bg-gradient-to-r from-yellow-400 via-orange-500 to-yellow-500 text-black shadow-lg shadow-yellow-500/50 animate-bounce"
+                                                    : "bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 text-white shadow-lg shadow-orange-500/30 animate-pulse"
                                                 : "bg-slate-700 text-slate-500 cursor-not-allowed"
                                         )}
                                     >

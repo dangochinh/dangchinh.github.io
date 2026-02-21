@@ -17,8 +17,9 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
 
     const [error, setError] = useState<string | null>(null);
     const [lastEvent, setLastEvent] = useState<any>(null); // For toasts/alerts
-    const [isHostConnected, setIsHostConnected] = useState<boolean>(true); // Assume true initially or wait for sync
+    const [isHostConnected, setIsHostConnected] = useState<boolean>(true);
     const [isConnecting, setIsConnecting] = useState<boolean>(true);
+    const [coWinners, setCoWinners] = useState<string[]>([]); // Names of co-Bingo winners
 
     const channelRef = useRef<RealtimeChannel | null>(null);
     const myIdRef = useRef<string | null>(null);
@@ -103,6 +104,15 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
                 if (payload.winRecord) {
                     setWinHistory(prev => [...prev, payload.winRecord]);
                 }
+                setCoWinners([]); // Reset after game ends
+            })
+            .on('broadcast', { event: 'bingoConfirmed' }, ({ payload }) => {
+                setGameState('BINGO_WINDOW');
+                setLastEvent({ type: 'bingoConfirmed', data: payload });
+                setCoWinners([]); // Fresh window
+            })
+            .on('broadcast', { event: 'coWinnerAdded' }, ({ payload }) => {
+                setCoWinners(prev => [...prev, payload.name]);
             })
             .on('broadcast', { event: 'gameRestarted' }, ({ payload }) => {
                 setGameState(payload.gameState);
@@ -111,8 +121,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
                 setNumbersDrawn([]);
                 setCurrentNumber(null);
                 setLastEvent(null);
-                // Reset ready state if needed, though payload.players should handled it
-                // Check me
+                setCoWinners([]);
                 const me = payload.players.find((p: Player) => p.id === myIdRef.current);
                 if (me) {
                     setIsReady(me.isReady);
@@ -226,6 +235,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             closeVerificationPopup
         },
         isHostConnected,
-        isConnecting
+        isConnecting,
+        coWinners
     };
 };

@@ -7,9 +7,10 @@ interface WinnerModalProps {
     winnerName: string;
     onClose: () => void;
     isMe: boolean;
+    coWinners?: string[];
 }
 
-const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe }) => {
+const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe, coWinners }) => {
     useEffect(() => {
         // Trigger confetti
         const duration = 3000;
@@ -59,6 +60,12 @@ const WinnerModal: React.FC<WinnerModalProps> = ({ winnerName, onClose, isMe }) 
                     <div className="text-3xl font-bold text-white break-words p-2 bg-slate-800/50 rounded-lg border border-slate-700">
                         {isMe ? "BẠN! 🏆" : winnerName}
                     </div>
+                    {coWinners && coWinners.length > 0 && (
+                        <div className="mt-3 p-2 bg-yellow-900/40 rounded-lg border border-yellow-600/50">
+                            <p className="text-yellow-400 font-bold text-sm mb-1">🤝 Bingo Trùng</p>
+                            <p className="text-white text-sm">{coWinners.join(', ')}</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-8">

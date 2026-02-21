@@ -129,14 +129,15 @@ const HostRoom: React.FC = () => {
         const data = winHistory.map(record => ({
             Round: record.round,
             Player: record.name,
+            BingoTrung: record.coWinners?.join(' & ') || '-',
             Type: record.reason === 'BINGO' ? 'BINGO' : 'KINH SAI',
             Time: new Date(record.timestamp).toLocaleTimeString(),
             Participants: record.players ? record.players.map(p => `${p.name} (Set ${p.setId})`).join('; ') : 'N/A'
         }));
 
         const csv = [
-            ['Round', 'Player', 'Type', 'Time', 'Participants'],
-            ...data.map(row => [row.Round, row.Player, row.Type, row.Time, row.Participants])
+            ['Round', 'Player', 'Bingo Trùng', 'Type', 'Time', 'Participants'],
+            ...data.map(row => [row.Round, row.Player, row.BingoTrung, row.Type, row.Time, row.Participants])
         ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
         const blob = new Blob([csv], { type: 'text/csv' });
@@ -173,6 +174,27 @@ const HostRoom: React.FC = () => {
             {showToast && (
                 <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg font-bold animate-fade-in">
                     ✓ Đã sao chép ID!
+                </div>
+            )}
+
+            {/* BINGO_WINDOW Host Overlay */}
+            {gameState === 'BINGO_WINDOW' && (
+                <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black z-50 flex items-center justify-between px-4 py-3 shadow-lg">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xl">🏆</span>
+                        <div>
+                            <div className="font-bold text-sm">Cửa sổ Bingo Trùng đang mở (5 giây)...</div>
+                            <div className="text-xs">{/* We don't have coWinners count here, but it will update on endBingoWindow */}
+                                Người chơi khác có thể bấm KINH nếu có Bingo!
+                            </div>
+                        </div>
+                    </div>
+                    <button
+                        onClick={actions.endBingoWindow}
+                        className="px-4 py-2 bg-black/20 hover:bg-black/40 rounded-lg font-bold text-sm transition-colors"
+                    >
+                        Kết Thúc Ngay
+                    </button>
                 </div>
             )}
 
@@ -313,6 +335,7 @@ const HostRoom: React.FC = () => {
                                     <tr className="text-slate-400 border-b border-slate-700">
                                         <th className="p-3">Vòng</th>
                                         <th className="p-3">Người Chơi</th>
+                                        <th className="p-3">Bingo Trùng</th>
                                         <th className="p-3">Loại</th>
                                         <th className="p-3">Thời Gian</th>
                                     </tr>
@@ -322,6 +345,11 @@ const HostRoom: React.FC = () => {
                                         <tr key={idx} className="border-b border-slate-700/50 hover:bg-slate-700/30">
                                             <td className="p-3 font-bold text-slate-300">#{record.round}</td>
                                             <td className="p-3 font-bold text-white">{record.name}</td>
+                                            <td className="p-3 text-yellow-400 text-sm">
+                                                {record.coWinners && record.coWinners.length > 0
+                                                    ? record.coWinners.join(', ')
+                                                    : <span className="text-slate-600">-</span>}
+                                            </td>
                                             <td className="p-3">
                                                 <span className={clsx(
                                                     "px-2 py-1 rounded text-xs font-bold",
@@ -337,7 +365,7 @@ const HostRoom: React.FC = () => {
                                     ))}
                                     {winHistory.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="p-8 text-center text-slate-500">Chưa có lịch sử.</td>
+                                            <td colSpan={5} className="p-8 text-center text-slate-500">Chưa có lịch sử.</td>
                                         </tr>
                                     )}
                                 </tbody>

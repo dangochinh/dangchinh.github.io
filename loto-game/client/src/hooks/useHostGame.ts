@@ -22,6 +22,10 @@ export const useHostGame = (roomId: string | undefined) => {
     const failuresRef = useRef<WinRecord[]>([]);
     const drawIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const channelRef = useRef<RealtimeChannel | null>(null);
+    // Bingo Window state
+    const firstWinnerRef = useRef<Player | null>(null);
+    const coWinnersRef = useRef<string[]>([]);
+    const bingoWindowTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Sync refs
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -130,46 +134,90 @@ export const useHostGame = (roomId: string | undefined) => {
         });
     };
 
+    const endBingoWindow = useCallback(() => {
+        if (bingoWindowTimerRef.current) clearTimeout(bingoWindowTimerRef.current);
+        const winner = firstWinnerRef.current;
+        if (!winner) return;
+        const currentRound = winHistoryRef.current.filter(r => r.type === 'win').length + 1;
+        const winRecord: WinRecord = {
+            name: winner.name,
+            coWinners: coWinnersRef.current.length > 0 ? [...coWinnersRef.current] : undefined,
+            timestamp: new Date(),
+            round: currentRound,
+            reason: 'BINGO',
+            type: 'win',
+            players: JSON.parse(JSON.stringify(playersRef.current)),
+            failures: [...failuresRef.current]
+        };
+        const newHistory = [...winHistoryRef.current, winRecord].slice(-50);
+        setWinHistory(newHistory);
+        winHistoryRef.current = newHistory;
+
+        setVerificationPopup({
+            playerName: winner.name,
+            success: true,
+            message: coWinnersRef.current.length > 0
+                ? `BINGO! Trùng với: ${coWinnersRef.current.join(', ')}`
+                : 'Player has BINGO!',
+            markedNumbers: [],
+            drawnNumbers: numbersDrawnRef.current,
+            playerTickets: winner.tickets
+        });
+
+        broadcast('gameEnded', {
+            winner,
+            coWinners: [...coWinnersRef.current],
+            reason: 'BINGO',
+            winRecord
+        });
+        setGameState('ENDED');
+        gameStateRef.current = 'ENDED';
+        // Reset
+        firstWinnerRef.current = null;
+        coWinnersRef.current = [];
+    }, [broadcast]);
+
     const verifyKinh = (playerId: string, markedNumbers: number[]) => {
         const player = playersRef.current.find(p => p.id === playerId);
         if (!player) return;
-
-        pauseGame();
 
         const hasBingo = checkForBingo(player.tickets, numbersDrawnRef.current);
         const currentRound = winHistoryRef.current.filter(r => r.type === 'win').length + 1;
 
         if (hasBingo) {
-            const winRecord: WinRecord = {
-                name: player.name,
-                timestamp: new Date(),
-                round: currentRound,
-                reason: 'BINGO',
-                type: 'win',
-                players: JSON.parse(JSON.stringify(playersRef.current)),
-                failures: [...failuresRef.current]
-            };
-            // Keep last 50 rounds
-            const newHistory = [...winHistoryRef.current, winRecord].slice(-50);
-            setWinHistory(newHistory); // In memory
-            winHistoryRef.current = newHistory; // Update ref immediately
+            // --- CASE 1: First KINH in this round → open BINGO_WINDOW ---
+            if (gameStateRef.current !== 'BINGO_WINDOW') {
+                if (drawIntervalRef.current) clearInterval(drawIntervalRef.current);
+                firstWinnerRef.current = player;
+                coWinnersRef.current = [];
+                setGameState('BINGO_WINDOW');
+                gameStateRef.current = 'BINGO_WINDOW';
+                broadcast('gameStateChanged', 'BINGO_WINDOW');
+                broadcast('bingoConfirmed', { winner: player, windowSeconds: 5 });
 
-            setVerificationPopup({
-                playerName: player.name,
-                success: true,
-                message: 'Player has BINGO!',
-                markedNumbers, // from client claim
-                drawnNumbers: numbersDrawnRef.current,
-                playerTickets: player.tickets
-            });
-
-            broadcast('gameEnded', {
-                winner: player,
-                reason: 'BINGO',
-                winRecord: winRecord
-            });
-            setGameState('ENDED');
+                // Start 5-second window, then auto-end
+                bingoWindowTimerRef.current = setTimeout(() => endBingoWindow(), 5000);
+            }
+            // --- CASE 2: Co-winner presses KINH within window ---
+            else if (gameStateRef.current === 'BINGO_WINDOW') {
+                // Skip if this player is already registered (duplicate event)
+                if (
+                    firstWinnerRef.current?.id !== player.id &&
+                    !coWinnersRef.current.includes(player.name)
+                ) {
+                    coWinnersRef.current = [...coWinnersRef.current, player.name];
+                    broadcast('coWinnerAdded', { name: player.name });
+                }
+            }
         } else {
+            // Kinh Sai — only valid outside of BINGO_WINDOW
+            if (gameStateRef.current === 'BINGO_WINDOW') return; // Ignore false claims during window
+
+            if (drawIntervalRef.current) clearInterval(drawIntervalRef.current);
+            setGameState('PAUSED');
+            gameStateRef.current = 'PAUSED';
+            broadcast('gameStateChanged', 'PAUSED');
+
             const failRecord: WinRecord = {
                 name: player.name,
                 timestamp: new Date(),
@@ -181,7 +229,6 @@ export const useHostGame = (roomId: string | undefined) => {
 
             failuresRef.current.push(failRecord);
 
-            // Update history immediately for "Kinh Sai"
             // Keep last 50 rounds
             const newHistory = [...winHistoryRef.current, failRecord].slice(-50);
             setWinHistory(newHistory);
@@ -412,6 +459,7 @@ export const useHostGame = (roomId: string | undefined) => {
             resumeGame,
             restartGame,
             endGame,
+            endBingoWindow,
             setVerificationPopup,
             setDrawInterval: setDrawIntervalSeconds,
             setDrawIntervalSeconds, // Alias for HostRoom.jsx compatibility
