@@ -42,6 +42,7 @@ const PlayerRoom: React.FC = () => {
         error,
         isHostConnected,
         isConnecting,
+        isReconnecting,
         coWinners
     } = usePlayerGame(roomId, finalName);
 
@@ -187,12 +188,12 @@ const PlayerRoom: React.FC = () => {
 
     if (!roomId) return null;
 
-    if (isConnecting) {
+    if (isConnecting && !isReconnecting) {
         return (
             <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
                 <div className="w-16 h-16 border-4 border-violet-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <h2 className="text-xl font-bold">Đang kết nối đến phòng...</h2>
-                <div className="text-sm text-slate-400 mt-2">Đang tìm Chủ phòng (Timeout 5s)</div>
+                <div className="text-sm text-slate-400 mt-2">Đang tìm Chủ phòng...</div>
             </div>
         );
     }
@@ -201,14 +202,22 @@ const PlayerRoom: React.FC = () => {
         return (
             <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-white">
                 <div className="text-6xl mb-4">⚠️</div>
-                <h2 className="text-2xl font-bold text-red-500 mb-2">Không Thể Vào Phòng</h2>
+                <h2 className="text-2xl font-bold text-red-500 mb-2">Mất Kết Nối</h2>
                 <p className="text-slate-300 mb-6">{error}</p>
-                <button
-                    onClick={() => navigate('/')}
-                    className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold"
-                >
-                    Về Trang Chủ
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => actions.reconnect()}
+                        className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-lg font-bold transition-colors"
+                    >
+                        🔄 Thử Kết Nối Lại
+                    </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-bold transition-colors"
+                    >
+                        Về Trang Chủ
+                    </button>
+                </div>
             </div>
         );
     }
@@ -235,6 +244,13 @@ const PlayerRoom: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-900 text-white p-4 pb-20">
+            {/* Reconnecting Banner */}
+            {isReconnecting && (
+                <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-black text-center py-2 font-bold text-sm animate-pulse">
+                    🔄 Đang kết nối lại với Chủ phòng...
+                </div>
+            )}
+
             {/* Header - Mobile Optimized */}
             <div className="fixed top-0 left-0 right-0 bg-slate-800 shadow-lg z-30">
                 {/* Main Header Row */}

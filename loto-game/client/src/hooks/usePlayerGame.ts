@@ -4,6 +4,52 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { Player, TicketSetInfo, GameState, TicketSet, WinRecord } from '../types';
 import { generateUUID } from '../utils/uuid';
 
+// --- Session Cache Helpers ---
+const SESSION_CACHE_KEY = 'bingo_game_cache';
+
+interface GameSessionCache {
+    roomId: string;
+    gameState: GameState;
+    mySetId: number | null;
+    myTickets: TicketSet | null;
+    numbersDrawn: number[];
+    currentNumber: number | null;
+    winHistory: WinRecord[];
+    isReady: boolean;
+    timestamp: number;
+}
+
+export const saveGameSession = (data: GameSessionCache): void => {
+    try {
+        sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(data));
+    } catch {
+        // sessionStorage might be full or unavailable
+    }
+};
+
+export const loadGameSession = (roomId: string): GameSessionCache | null => {
+    try {
+        const raw = sessionStorage.getItem(SESSION_CACHE_KEY);
+        if (!raw) return null;
+        const data: GameSessionCache = JSON.parse(raw);
+        // Only restore if same room and cache is less than 30 minutes old
+        if (data.roomId !== roomId) return null;
+        if (Date.now() - data.timestamp > 30 * 60 * 1000) return null;
+        return data;
+    } catch {
+        return null;
+    }
+};
+
+export const clearGameSession = (): void => {
+    try {
+        sessionStorage.removeItem(SESSION_CACHE_KEY);
+    } catch {
+        // ignore
+    }
+};
+
+// --- Hook ---
 export const usePlayerGame = (roomId: string | undefined, playerName: string | undefined) => {
     const [gameState, setGameState] = useState<GameState>('WAITING');
     const [availableSets, setAvailableSets] = useState<TicketSetInfo[]>([]);
@@ -19,12 +65,15 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
     const [lastEvent, setLastEvent] = useState<any>(null); // For toasts/alerts
     const [isHostConnected, setIsHostConnected] = useState<boolean>(true);
     const [isConnecting, setIsConnecting] = useState<boolean>(true);
+    const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
     const [coWinners, setCoWinners] = useState<string[]>([]); // Names of co-Bingo winners
 
     const channelRef = useRef<RealtimeChannel | null>(null);
     const myIdRef = useRef<string | null>(null);
     const hostFoundRef = useRef<boolean>(false);
     const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const retryCountRef = useRef<number>(0);
+    const maxRetries = 2;
 
     // Initialize my ID
     useEffect(() => {
@@ -36,12 +85,42 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
         myIdRef.current = id;
     }, []);
 
+    // Restore cached session on mount
+    useEffect(() => {
+        if (!roomId) return;
+        const cached = loadGameSession(roomId);
+        if (cached) {
+            setGameState(cached.gameState);
+            setMySetId(cached.mySetId);
+            setMyTickets(cached.myTickets);
+            setNumbersDrawn(cached.numbersDrawn);
+            setCurrentNumber(cached.currentNumber);
+            setWinHistory(cached.winHistory);
+            setIsReady(cached.isReady);
+            setIsReconnecting(true);
+        }
+    }, [roomId]);
+
+    // Retry join logic
+    const retryJoin = useCallback(() => {
+        if (!channelRef.current || !myIdRef.current || !playerName) return;
+        channelRef.current.send({
+            type: 'broadcast',
+            event: 'requestJoin',
+            payload: {
+                id: myIdRef.current,
+                name: playerName
+            }
+        });
+    }, [playerName]);
+
     const joinRoom = useCallback(() => {
         if (!roomId || !playerName || !myIdRef.current) return;
 
+        // Cleanup any existing channel
         if (channelRef.current) {
-            // Already joined?
-            // return;
+            supabase.removeChannel(channelRef.current);
+            channelRef.current = null;
         }
 
         const channel = supabase.channel(`room:${roomId}`, {
@@ -50,30 +129,47 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
 
         channelRef.current = channel;
 
-        // Start connection timeout
-        connectionTimeoutRef.current = setTimeout(() => {
-            if (!hostFoundRef.current) {
-                setError("Không tìm thấy phòng hoặc Chủ phòng không online!");
-                setIsConnecting(false);
-            }
-        }, 5000);
+        // Connection timeout with retry
+        const startConnectionTimeout = () => {
+            if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+            connectionTimeoutRef.current = setTimeout(() => {
+                if (!hostFoundRef.current) {
+                    if (retryCountRef.current < maxRetries) {
+                        retryCountRef.current++;
+                        // Retry sending requestJoin
+                        retryJoin();
+                        startConnectionTimeout(); // Reset timeout for retry
+                    } else {
+                        // Check if we have cached data - show reconnect option instead of hard error
+                        const cached = loadGameSession(roomId);
+                        if (cached) {
+                            setError("Không thể kết nối lại với Chủ phòng. Phòng có thể đã kết thúc.");
+                        } else {
+                            setError("Không tìm thấy phòng hoặc Chủ phòng không online!");
+                        }
+                        setIsConnecting(false);
+                        setIsReconnecting(false);
+                    }
+                }
+            }, 5000);
+        };
+
+        startConnectionTimeout();
 
         channel
             .on('presence', { event: 'sync' }, () => {
                 const state = channel.presenceState();
-                const hasHost = 'host' in state; // Host uses key 'host'
+                const hasHost = 'host' in state;
                 setIsHostConnected(hasHost);
-
-                // If we found host via presence, ensuring we don't timeout if roomDataSync is slightly delayed
-                if (hasHost) {
-                    // hostFoundRef.current = true; // Wait for data sync to be sure? No, presence is enough for "Room Exists" check usually
-                }
             })
             .on('broadcast', { event: 'roomDataSync' }, ({ payload }) => {
                 hostFoundRef.current = true;
                 if (connectionTimeoutRef.current) clearTimeout(connectionTimeoutRef.current);
+                retryCountRef.current = 0;
                 setIsHostConnected(true);
                 setIsConnecting(false);
+                setIsReconnecting(false);
+                setError(null);
                 setGameState(payload.gameState);
                 setAvailableSets(payload.availableSets);
                 setPlayers(payload.players);
@@ -86,17 +182,50 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
                     setMySetId(me.setId);
                     setIsReady(me.isReady);
                     setMyTickets(me.tickets);
+
+                    // Cache session data for reconnect
+                    saveGameSession({
+                        roomId: roomId,
+                        gameState: payload.gameState,
+                        mySetId: me.setId,
+                        myTickets: me.tickets,
+                        numbersDrawn: payload.numbersDrawn,
+                        currentNumber: payload.currentNumber,
+                        winHistory: payload.winHistory,
+                        isReady: me.isReady,
+                        timestamp: Date.now()
+                    });
                 }
             })
             .on('broadcast', { event: 'playerJoined' }, ({ payload }) => {
-                setPlayers(payload); // Payload is list of players? Or single player? Code suggests list.
+                setPlayers(payload);
             })
             .on('broadcast', { event: 'numberDrawn' }, ({ payload }) => {
                 setNumbersDrawn(payload.history);
                 setCurrentNumber(payload.number);
+
+                // Update cache with new drawn numbers
+                if (roomId) {
+                    const cached = loadGameSession(roomId);
+                    if (cached) {
+                        saveGameSession({
+                            ...cached,
+                            numbersDrawn: payload.history,
+                            currentNumber: payload.number,
+                            timestamp: Date.now()
+                        });
+                    }
+                }
             })
             .on('broadcast', { event: 'gameStateChanged' }, ({ payload }) => {
                 setGameState(payload);
+                // Update cache
+                if (roomId) {
+                    const cached = loadGameSession(roomId);
+                    if (cached) {
+                        saveGameSession({ ...cached, gameState: payload, timestamp: Date.now() });
+                    }
+                }
             })
             .on('broadcast', { event: 'gameEnded' }, ({ payload }) => {
                 setGameState('ENDED');
@@ -104,12 +233,12 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
                 if (payload.winRecord) {
                     setWinHistory(prev => [...prev, payload.winRecord]);
                 }
-                setCoWinners([]); // Reset after game ends
+                setCoWinners([]);
             })
             .on('broadcast', { event: 'bingoConfirmed' }, ({ payload }) => {
                 setGameState('BINGO_WINDOW');
                 setLastEvent({ type: 'bingoConfirmed', data: payload });
-                setCoWinners([]); // Fresh window
+                setCoWinners([]);
             })
             .on('broadcast', { event: 'coWinnerAdded' }, ({ payload }) => {
                 setCoWinners(prev => [...prev, payload.name]);
@@ -126,6 +255,8 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
                 if (me) {
                     setIsReady(me.isReady);
                 }
+                // Clear cache on restart (new round)
+                clearGameSession();
             })
             .on('broadcast', { event: 'joinRejected' }, ({ payload }) => {
                 if (payload.playerId === myIdRef.current) {
@@ -148,7 +279,6 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             .on('broadcast', { event: 'verificationResult' }, ({ payload }) => {
                 if (payload.playerId === myIdRef.current) {
                     // Handle verification result for me
-                    // PlayerRoom handles UI based on lastEvent
                 }
                 setLastEvent({ type: 'verification', ...payload });
             })
@@ -171,7 +301,7 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             supabase.removeChannel(channel);
             channelRef.current = null;
         };
-    }, [roomId, playerName]);
+    }, [roomId, playerName, retryJoin]);
 
     useEffect(() => {
         if (roomId && playerName) {
@@ -179,6 +309,15 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
         }
     }, [roomId, playerName, joinRoom]);
 
+    // Manual reconnect action
+    const reconnect = useCallback(() => {
+        setError(null);
+        setIsConnecting(true);
+        setIsReconnecting(true);
+        hostFoundRef.current = false;
+        retryCountRef.current = 0;
+        joinRoom();
+    }, [joinRoom]);
 
     const selectSet = (setId: number) => {
         if (!channelRef.current) return;
@@ -236,12 +375,14 @@ export const usePlayerGame = (roomId: string | undefined, playerName: string | u
             selectSet,
             toggleReady,
             claimBingo,
-            sendKinh: claimBingo, // Alias for backward compatibility if needed
+            sendKinh: claimBingo,
             leaveSeat,
-            closeVerificationPopup
+            closeVerificationPopup,
+            reconnect
         },
         isHostConnected,
         isConnecting,
+        isReconnecting,
         coWinners
     };
 };
