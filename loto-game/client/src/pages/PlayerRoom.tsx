@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Ticket from '../components/Ticket';
 import WinnerModal from '../components/WinnerModal';
 import AlertModal from '../components/AlertModal';
+import IntroModal from '../components/IntroModal';
 import { clsx } from 'clsx';
 import { usePlayerGame } from '../hooks/usePlayerGame';
 import { TicketGrid } from '../utils/gameLogic';
@@ -50,6 +51,31 @@ const PlayerRoom: React.FC = () => {
     const [markedNumbers, setMarkedNumbers] = useState<number[]>([]);
     const [showHistory, setShowHistory] = useState(false);
     const [showDrawnNumbers, setShowDrawnNumbers] = useState(false);
+    const [showIntro, setShowIntro] = useState(false);
+
+    // Auto-dò 30s cooldown
+    const [autoDoLastUsed, setAutoDoLastUsed] = useState<number>(0);
+    const [autoDoCooldown, setAutoDoCooldown] = useState<number>(0);
+    const cooldownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        if (autoDoCooldown <= 0) {
+            if (cooldownTimerRef.current) {
+                clearInterval(cooldownTimerRef.current);
+                cooldownTimerRef.current = null;
+            }
+            return;
+        }
+        cooldownTimerRef.current = setInterval(() => {
+            setAutoDoCooldown(prev => {
+                if (prev <= 1) return 0;
+                return prev - 1;
+            });
+        }, 1000);
+        return () => {
+            if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+        };
+    }, [autoDoCooldown > 0]);
 
     interface WinnerInfo {
         name: string;
@@ -161,7 +187,11 @@ const PlayerRoom: React.FC = () => {
         }
     };
 
-    const autoMarkDrawnNumbers = () => {
+    const autoMarkDrawnNumbers = useCallback(() => {
+        const now = Date.now();
+        const elapsed = (now - autoDoLastUsed) / 1000;
+        if (elapsed < 30 && autoDoLastUsed > 0) return; // Still in cooldown
+
         const numbersInTickets: number[] = [];
         if (myTickets) {
             myTickets.forEach((ticket: TicketGrid) => {
@@ -175,8 +205,9 @@ const PlayerRoom: React.FC = () => {
             });
         }
         setMarkedNumbers(numbersInTickets);
-        setShowDrawnNumbers(false);
-    };
+        setAutoDoLastUsed(now);
+        setAutoDoCooldown(30);
+    }, [myTickets, numbersDrawn, autoDoLastUsed]);
 
     const handleKinh = () => {
         if (markedNumbers.length === 0) {
@@ -370,8 +401,25 @@ const PlayerRoom: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-                        <div className="mt-4">
-                            <button onClick={autoMarkDrawnNumbers} className="w-full px-6 py-3 bg-green-600 rounded-lg font-bold">✓ Tự Động Dò</button>
+                        <div className="mt-4 flex gap-2">
+                            <button
+                                onClick={autoMarkDrawnNumbers}
+                                disabled={autoDoCooldown > 0}
+                                className={clsx(
+                                    "flex-1 px-6 py-3 rounded-lg font-bold transition-colors",
+                                    autoDoCooldown > 0
+                                        ? "bg-slate-600 text-slate-400 cursor-not-allowed"
+                                        : "bg-green-600 hover:bg-green-500"
+                                )}
+                            >
+                                {autoDoCooldown > 0 ? `⏳ Chờ ${autoDoCooldown}s` : '✓ Tự Động Dò'}
+                            </button>
+                            <button
+                                onClick={() => setShowDrawnNumbers(false)}
+                                className="px-5 py-3 bg-slate-600 hover:bg-slate-500 rounded-lg font-bold transition-colors"
+                            >
+                                Đóng
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -392,6 +440,9 @@ const PlayerRoom: React.FC = () => {
 
             {/* Alert Modal */}
             {alertInfo && <AlertModal message={alertInfo.message} type={alertInfo.type} onClose={handleAlertClose} />}
+
+            {/* Intro Modal */}
+            {showIntro && <IntroModal onClose={() => setShowIntro(false)} />}
 
             {/* Host Disconnect Overlay */}
             {disconnectCountdown !== null && (
@@ -565,8 +616,14 @@ const PlayerRoom: React.FC = () => {
                                         🎯 KINH!
                                     </button>
 
-                                    {/* Placeholder */}
-                                    <div className="w-12 h-12"></div>
+                                    {/* Info Button */}
+                                    <button
+                                        onClick={() => setShowIntro(true)}
+                                        className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 hover:from-orange-300 hover:to-orange-500 flex items-center justify-center text-white shadow-lg transition-all hover:scale-110 border border-orange-300/50"
+                                        title="Hướng dẫn & Ủng hộ"
+                                    >
+                                        <span className="text-xl font-bold font-serif italic">i</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
