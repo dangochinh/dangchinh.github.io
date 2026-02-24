@@ -10,6 +10,9 @@
   - Tự động retry kết nối 2 lần trước khi báo lỗi
   - Nút "Thử Kết Nối Lại" thay vì chỉ có "Về Trang Chủ"
   - Banner "Đang kết nối lại..." hiện khi đang reconnect
+- **Host: Highlight số chờ xổ**: Khi hàng đã xổ 4/5 số, số còn lại nhấp nháy vàng trong "Xem Vé"
+- **Nút Info**: Hiện ở tất cả màn hình (Home, Player, Host)
+- **Tự Động Dò cooldown**: Chỉ dùng được mỗi 30 giây + nút Đóng
 
 ### 🔍 SEO
 - Tối ưu SEO Level 1: title, meta description, Open Graph, Twitter Card
