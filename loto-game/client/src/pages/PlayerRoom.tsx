@@ -403,7 +403,7 @@ const PlayerRoom: React.FC = () => {
                         </div>
                         <div className="mt-4 flex gap-2">
                             <button
-                                onClick={autoMarkDrawnNumbers}
+                                onClick={() => { autoMarkDrawnNumbers(); setShowDrawnNumbers(false); }}
                                 disabled={autoDoCooldown > 0}
                                 className={clsx(
                                     "flex-1 px-6 py-3 rounded-lg font-bold transition-colors",

@@ -9,8 +9,8 @@ const Home: React.FC = () => {
     const [showIntro, setShowIntro] = useState(false);
 
     const createRoom = () => {
-        // Generate a random 6-digit room ID (numbers only)
-        const newRoomId = String(Math.floor(100000 + Math.random() * 900000));
+        // Generate a random 3-digit room ID (numbers only)
+        const newRoomId = String(Math.floor(100 + Math.random() * 900));
         navigate(`/${newRoomId}/host`);
     };
 
@@ -62,7 +62,7 @@ const Home: React.FC = () => {
                             value={roomId}
                             onChange={e => setRoomId(e.target.value)}
                             className="flex-1 p-3 bg-slate-700 rounded-lg border border-slate-600 uppercase focus:border-pink-500 focus:ring-1 focus:ring-pink-500 outline-none transition-all text-white placeholder-slate-400"
-                            maxLength={6}
+                            maxLength={3}
                             required
                         />
                         <button
