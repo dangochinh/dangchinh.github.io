@@ -167,9 +167,19 @@ class GameManager {
         if (room.players.length === 0) return; // Can't start empty
         if (!allReady) return { error: 'Not all players are ready' };
 
-        // Khởi tạo LotoController với danh sách người chơi hiện tại
-        room.lotoController = new LotoController(room.players);
-        console.log(`[LotoController] Initialized for room ${roomId} with K=${room.lotoController.k_threshold}, ${room.players.length} players`);
+        // Random chọn 1 trong 2 chế độ bốc số:
+        // 1. RANDOM: 100% ngẫu nhiên (không dùng LotoController)
+        // 2. REGULATED: Thuật toán điều tiết kịch tính
+        const useRegulated = Math.random() < 0.5;
+        if (useRegulated) {
+            room.lotoController = new LotoController(room.players);
+            room.drawMode = 'REGULATED';
+            console.log(`[Game] Room ${roomId}: Mode = REGULATED (K=${room.lotoController.k_threshold}, ${room.players.length} players)`);
+        } else {
+            room.lotoController = null;
+            room.drawMode = 'RANDOM';
+            console.log(`[Game] Room ${roomId}: Mode = RANDOM (${room.players.length} players)`);
+        }
 
         room.gameState = 'PLAYING';
         this.startDrawLoop(roomId);
