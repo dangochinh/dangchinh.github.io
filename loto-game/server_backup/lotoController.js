@@ -16,7 +16,7 @@ class LotoController {
         this.drawnNumbers = new Set();
         this.allNumbers = Array.from({ length: 90 }, (_, i) => i + 1);
         this.currentStage = 'SAFE_INIT';
-        this.k_threshold = Math.floor(Math.random() * 11) + 10; // K ∈ [10, 20]
+        this.k_threshold = Math.floor(Math.random() * 11) + 15; // K ∈ [15, 25]
     }
 
     /**

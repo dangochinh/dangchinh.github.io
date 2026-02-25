@@ -1,0 +1,228 @@
+{
+  "config": {
+    "players": 16,
+    "gamesPerMode": 200
+  },
+  "REGULATED_K10_20": {
+    "mode": "REGULATED",
+    "winsByTicket": [
+      {
+        "name": "xanh non chuoi 39",
+        "wins": 23
+      },
+      {
+        "name": "xanh la 33",
+        "wins": 21
+      },
+      {
+        "name": "hong 24",
+        "wins": 20
+      },
+      {
+        "name": "cam 45",
+        "wins": 17
+      },
+      {
+        "name": "xanh nuoc bien 3",
+        "wins": 16
+      },
+      {
+        "name": "hong 21",
+        "wins": 15
+      },
+      {
+        "name": "cam vang 33",
+        "wins": 14
+      },
+      {
+        "name": "cam vang 6",
+        "wins": 13
+      },
+      {
+        "name": "tim 15",
+        "wins": 12
+      },
+      {
+        "name": "vang 12",
+        "wins": 12
+      },
+      {
+        "name": "xanh nuoc bien 27",
+        "wins": 12
+      },
+      {
+        "name": "cam 48",
+        "wins": 11
+      },
+      {
+        "name": "tim 18",
+        "wins": 11
+      },
+      {
+        "name": "xanh non chuoi 42",
+        "wins": 9
+      },
+      {
+        "name": "xanh la 36",
+        "wins": 8
+      },
+      {
+        "name": "vang 9",
+        "wins": 7
+      }
+    ],
+    "drawStats": {
+      "min": 13,
+      "max": 42,
+      "avg": 27.8
+    }
+  },
+  "REGULATED_K15_25": {
+    "mode": "REGULATED_K15_25",
+    "winsByTicket": [
+      {
+        "name": "xanh la 36",
+        "wins": 23
+      },
+      {
+        "name": "xanh non chuoi 39",
+        "wins": 22
+      },
+      {
+        "name": "cam vang 33",
+        "wins": 20
+      },
+      {
+        "name": "cam 48",
+        "wins": 17
+      },
+      {
+        "name": "xanh non chuoi 42",
+        "wins": 17
+      },
+      {
+        "name": "cam 45",
+        "wins": 15
+      },
+      {
+        "name": "xanh nuoc bien 3",
+        "wins": 15
+      },
+      {
+        "name": "tim 18",
+        "wins": 14
+      },
+      {
+        "name": "tim 15",
+        "wins": 12
+      },
+      {
+        "name": "vang 12",
+        "wins": 12
+      },
+      {
+        "name": "xanh nuoc bien 27",
+        "wins": 12
+      },
+      {
+        "name": "hong 24",
+        "wins": 11
+      },
+      {
+        "name": "cam vang 6",
+        "wins": 9
+      },
+      {
+        "name": "vang 9",
+        "wins": 9
+      },
+      {
+        "name": "xanh la 33",
+        "wins": 8
+      },
+      {
+        "name": "hong 21",
+        "wins": 6
+      }
+    ],
+    "drawStats": {
+      "min": 18,
+      "max": 43,
+      "avg": 30.6
+    }
+  },
+  "RANDOM": {
+    "mode": "RANDOM",
+    "winsByTicket": [
+      {
+        "name": "vang 9",
+        "wins": 19
+      },
+      {
+        "name": "tim 18",
+        "wins": 18
+      },
+      {
+        "name": "xanh nuoc bien 3",
+        "wins": 17
+      },
+      {
+        "name": "xanh la 33",
+        "wins": 16
+      },
+      {
+        "name": "cam 48",
+        "wins": 15
+      },
+      {
+        "name": "xanh la 36",
+        "wins": 15
+      },
+      {
+        "name": "cam vang 33",
+        "wins": 15
+      },
+      {
+        "name": "cam 45",
+        "wins": 14
+      },
+      {
+        "name": "hong 24",
+        "wins": 14
+      },
+      {
+        "name": "tim 15",
+        "wins": 13
+      },
+      {
+        "name": "xanh non chuoi 39",
+        "wins": 13
+      },
+      {
+        "name": "cam vang 6",
+        "wins": 12
+      },
+      {
+        "name": "xanh non chuoi 42",
+        "wins": 12
+      },
+      {
+        "name": "vang 12",
+        "wins": 11
+      },
+      {
+        "name": "xanh nuoc bien 27",
+        "wins": 11
+      },
+      {
+        "name": "hong 21",
+        "wins": 9
+      }
+    ],
+    "drawStats": {
+      "min": 13,
+      "max": 48,
+      "avg": 33.2
+    }
+  }
+}
