@@ -538,12 +538,12 @@ const HostRoom: React.FC = () => {
                     </div>
 
                     {/* Board Grid - Column-major order (top-to-bottom, left-to-right) */}
-                    <div className="grid grid-cols-10 gap-2 max-w-4xl mx-auto mt-8">
+                    <div className="grid grid-cols-9 gap-2 max-w-4xl mx-auto mt-8">
                         {Array.from({ length: 90 }, (_, i) => {
-                            // 10 cols x 9 rows, numbers go top-to-bottom then left-to-right
-                            const gridRow = Math.floor(i / 10);
-                            const gridCol = i % 10;
-                            const num = gridCol * 9 + gridRow + 1;
+                            // 9 cols x 10 rows, numbers go top-to-bottom then left-to-right
+                            const gridRow = Math.floor(i / 9);
+                            const gridCol = i % 9;
+                            const num = gridCol * 10 + gridRow + 1;
                             return (
                                 <div
                                     key={num}
