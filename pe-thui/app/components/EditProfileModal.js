@@ -66,7 +66,7 @@ export default function EditProfileModal({ profile, code, onClose, onSave }) {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-bold text-gray-500 mb-1">Mã Code (URL)</label>
+                        <label className="block text-sm font-bold text-gray-500 mb-1">Mã Code</label>
                         <input
                             type="text"
                             className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-300 transition-all font-medium text-gray-700"
