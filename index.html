@@ -95,6 +95,8 @@
         }
 
         .hero h1 {
+            font-family: var(--font-body);
+            /* Switching to Inter for better Vietnamese diacritics */
             font-size: clamp(3rem, 8vw, 5rem);
             font-weight: 800;
             margin-bottom: 1rem;
@@ -103,11 +105,15 @@
         }
 
         .hero h2 {
-            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            font-size: clamp(1.2rem, 3vw, 1.5rem);
+            /* Reduced slightly to fit better */
             color: var(--text-secondary);
             font-weight: 400;
             margin-bottom: 2rem;
-            max-width: 600px;
+            max-width: 800px;
+            /* Increased max width to prevent awkward wrapping */
+            text-wrap: balance;
+            /* Allows for better balancing if it must wrap */
         }
 
         .badges {
