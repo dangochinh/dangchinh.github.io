@@ -134,6 +134,17 @@
             font-weight: 600;
             font-size: 0.9rem;
             backdrop-filter: blur(10px);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        a.badge:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
         }
 
         .contact-links {
@@ -491,8 +502,14 @@
             <h2>IT Project Manager | Scrum Master | Agile Practitioner</h2>
 
             <div class="badges">
-                <span class="badge"><i class="fa-solid fa-certificate"></i> PMP® Certified</span>
-                <span class="badge"><i class="fa-solid fa-certificate"></i> PMI-ACP®</span>
+                <a href="https://www.credly.com/badges/fff17ef0-4c6d-49f9-8086-2ee1f59eafa8" target="_blank"
+                    class="badge">
+                    <i class="fa-solid fa-certificate"></i> PMP® Certified
+                </a>
+                <a href="https://www.credly.com/badges/65688aae-1b06-4fd3-9b90-a667320beaaf" target="_blank"
+                    class="badge">
+                    <i class="fa-solid fa-certificate"></i> PMI-ACP®
+                </a>
                 <span class="badge"><i class="fa-solid fa-briefcase"></i> 8+ Years Experience</span>
             </div>
 
