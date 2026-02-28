@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đặng Ngọc Chính | Project Manager & Scrum Master</title>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --surface-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-primary: #3b82f6;
+            /* Blue */
+            --accent-secondary: #8b5cf6;
+            /* Purple */
+            --gradient-text: linear-gradient(135deg, #60a5fa, #a78bfa);
+            --font-heading: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        /* Typography */
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: var(--font-heading);
+            font-weight: 600;
+        }
+
+        .gradient-text {
+            background: var(--gradient-text);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header.hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+            position: relative;
+            padding: 4rem 1rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 5rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h2 {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: var(--text-secondary);
+            font-weight: 400;
+            margin-bottom: 2rem;
+            max-width: 600px;
+        }
+
+        .badges {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 9999px;
+            color: #60a5fa;
+            font-family: var(--font-heading);
+            font-weight: 600;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .contact-links {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+
+        .contact-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contact-btn.primary {
+            background: var(--gradient-text);
+            color: white;
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .contact-btn.primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .contact-btn.secondary {
+            background: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--surface-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .contact-btn.secondary:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Sections */
+        section {
+            padding: 6rem 0;
+            border-top: 1px solid var(--surface-border);
+        }
+
+        .section-header {
+            margin-bottom: 4rem;
+            text-align: center;
+        }
+
+        .section-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Experience Section */
+        .timeline {
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .timeline::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            background: var(--surface-border);
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            margin-left: -1px;
+        }
+
+        .timeline-item {
+            padding: 10px 40px;
+            position: relative;
+            background-color: inherit;
+            width: 50%;
+        }
+
+        .timeline-item::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            right: -8px;
+            background-color: var(--bg-color);
+            border: 4px solid var(--accent-primary);
+            top: 24px;
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .left {
+            left: 0;
+        }
+
+        .right {
+            left: 50%;
+        }
+
+        .right::after {
+            left: -8px;
+        }
+
+        .timeline-content {
+            padding: 2rem;
+            background: var(--surface-color);
+            border: 1px solid var(--surface-border);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .timeline-content:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+
+        .timeline-date {
+            color: var(--accent-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .timeline-role {
+            font-size: 1.25rem;
+            margin-bottom: 0.25rem;
+            color: #fff;
+        }
+
+        .timeline-company {
+            color: #a78bfa;
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-desc {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .timeline-desc ul {
+            padding-left: 1.2rem;
+            margin-top: 0.5rem;
+        }
+
+        .timeline-desc li {
+            margin-bottom: 0.3rem;
+        }
+
+        /* Projects Section */
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+        }
+
+        .project-card {
+            background: var(--surface-color);
+            border: 1px solid var(--surface-border);
+            border-radius: 20px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-text);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .project-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .project-card:hover::before {
+            opacity: 1;
+        }
+
+        .project-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .project-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .project-desc {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+            flex-grow: 1;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-top: auto;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.2rem;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tech-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .tech-label {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            min-width: 70px;
+        }
+
+        .tech-value {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .project-links {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .project-link {
+            text-decoration: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: color 0.2s;
+        }
+
+        .project-link:hover {
+            color: var(--accent-primary);
+        }
+
+        /* Skills Highlights */
+        .skills-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .skill-tag {
+            padding: 0.8rem 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        .skill-tag:hover {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 3rem 0;
+            border-top: 1px solid var(--surface-border);
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Responsive */
+        @media screen and (max-width: 768px) {
+            .timeline::after {
+                left: 31px;
+            }
+
+            .timeline-item {
+                width: 100%;
+                padding-left: 70px;
+                padding-right: 0;
+            }
+
+            .timeline-item::after {
+                left: 23px;
+            }
+
+            .right {
+                left: 0;
+            }
+
+            .projects-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="gradient-text">Đặng Ngọc Chính</h1>
+            <h2>IT Project Manager | Scrum Master | Agile Practitioner</h2>
+
+            <div class="badges">
+                <span class="badge"><i class="fa-solid fa-certificate"></i> PMP® Certified</span>
+                <span class="badge"><i class="fa-solid fa-certificate"></i> PMI-ACP®</span>
+                <span class="badge"><i class="fa-solid fa-briefcase"></i> 8+ Years Experience</span>
+            </div>
+
+            <div class="contact-links">
+                <a href="#projects" class="contact-btn primary">
+                    View Projects <i class="fa-solid fa-arrow-down"></i>
+                </a>
+                <a href="mailto:dangochinh@gmail.com" class="contact-btn secondary">
+                    <i class="fa-solid fa-envelope"></i> Contact Me
+                </a>
+            </div>
+
+            <div style="margin-top: 4rem; max-width: 800px; margin-left: auto; margin-right: auto;">
+                <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.8;">
+                    Experienced IT professional with a strong track record in project management and business analysis.
+                    Proficient in requirement gathering, creating specifications, and leading teams through Agile
+                    methodologies to deliver high-quality products. Passionate about solving complex problems and
+                    enhancing user experiences.
+                </p>
+
+                <div class="skills-grid">
+                    <div class="skill-tag"><i class="fa-solid fa-tasks" style="color: #60a5fa; margin-right: 8px;"></i>
+                        Project Management</div>
+                    <div class="skill-tag"><i class="fa-solid fa-users-gear"
+                            style="color: #a78bfa; margin-right: 8px;"></i> Scrum/Agile</div>
+                    <div class="skill-tag"><i class="fa-solid fa-clipboard-check"
+                            style="color: #34d399; margin-right: 8px;"></i> Requirements Analysis</div>
+                    <div class="skill-tag"><i class="fa-solid fa-code" style="color: #fbbf24; margin-right: 8px;"></i>
+                        Technical Implementation</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Experience Section -->
+    <section id="experience">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="gradient-text">Experience Highlights</h2>
+                <p>A brief timeline of my professional journey in software development and project management.</p>
+            </div>
+
+            <div class="timeline">
+                <div class="timeline-item left">
+                    <div class="timeline-content">
+                        <span class="timeline-date">10/2021 - Present</span>
+                        <h3 class="timeline-role">Project Manager / Scrum Master</h3>
+                        <div class="timeline-company">FPT Software</div>
+                        <div class="timeline-desc">
+                            <ul>
+                                <li><strong>Supply Chain Management / SMS</strong>: Managed project plans, tracked
+                                    timelines, and removed impediments to ensure successful sprint goals.</li>
+                                <li><strong>akaWMS</strong>: Maintained project documentation, determined
+                                    scope/timelines, and managed changes to ensure high-quality delivery.</li>
+                                <li><strong>Mega App</strong>: Analyzed product requirements and collaborated with
+                                    designers to translate product strategy into wireframes and workflows.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item right">
+                    <div class="timeline-content">
+                        <span class="timeline-date">11/2017 - 06/2020</span>
+                        <h3 class="timeline-role">Business Analyst Leader</h3>
+                        <div class="timeline-company">FPT Software</div>
+                        <div class="timeline-desc">
+                            <ul>
+                                <li><strong>CCS (Cabinet Controller System)</strong>: Gathered requirements across 8
+                                    ASEAN countries, analyzed new features, and developed SRS docs.</li>
+                                <li><strong>MEMs & CBP eMobiz</strong>: Created specifications, verified packages before
+                                    deployment, and provided robust backend support.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-item left">
+                    <div class="timeline-content">
+                        <span class="timeline-date">2016 - 2017</span>
+                        <h3 class="timeline-role">Product Owner & Business Analyst</h3>
+                        <div class="timeline-company">GiaoHangNhanh Holding & iG Logistics</div>
+                        <div class="timeline-desc">
+                            <ul>
+                                <li><strong>GiaoHangNhanh</strong>: Collected requirements, analyzed new APIs, and
+                                    designed wireframes for integration with Shopee, Lazada, Tiki, Sendo.</li>
+                                <li><strong>iG Logistics</strong>: Planned new features with reasonable timelines and
+                                    designed entities & wireframes for CRM and operation system.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="projects">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="gradient-text">Featured Projects</h2>
+                <p>Recent applications I've developed, showcasing various technologies and architectures.</p>
+            </div>
+
+            <div class="projects-grid">
+
+                <!-- Project 1: Loto Online -->
+                <div class="project-card">
+                    <div class="project-icon">
+                        <i class="fa-solid fa-gamepad"></i>
+                    </div>
+                    <h3 class="project-title">Loto Online</h3>
+                    <p class="project-desc">An interactive multiplayer online bingo game, allowing players to join
+                        rooms, receive digital tickets, and play in real-time with a host managing the draws.</p>
+
+                    <div class="tech-stack">
+                        <div class="tech-item">
+                            <span class="tech-label">Platform:</span>
+                            <span class="tech-value">Responsive Web Application</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Tech:</span>
+                            <span class="tech-value">React, Vite, Node.js, Express, Socket.io</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Arch:</span>
+                            <span class="tech-value">Client-Server architecture heavily utilizing Real-time WebSockets
+                                synchronization for instantaneous game state updates.</span>
+                        </div>
+                    </div>
+                    <div class="project-links">
+                        <a href="https://dangchinh.github.io/loto-game/" target="_blank" class="project-link"><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i> Visit Site</a>
+                        <a href="https://github.com/dangochinh/dangchinh.github.io/tree/main/loto-game" target="_blank"
+                            class="project-link"><i class="fa-brands fa-github"></i> Source Code</a>
+                    </div>
+                </div>
+
+                <!-- Project 2: Vietlott Dashboard -->
+                <div class="project-card">
+                    <div class="project-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                    <h3 class="project-title">Vietlott Dashboard</h3>
+                    <p class="project-desc">A comprehensive data visualization dashboard tracking historical lottery
+                        results, providing analytical insights and statistical trends over time.</p>
+
+                    <div class="tech-stack">
+                        <div class="tech-item">
+                            <span class="tech-label">Platform:</span>
+                            <span class="tech-value">Web Application</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Tech:</span>
+                            <span class="tech-value">React, Vite, Chart.js / Recharts, TailwindCSS</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Arch:</span>
+                            <span class="tech-value">Frontend Single Page App consuming API for data aggregation,
+                                transformation, and interactive data visualization mapping.</span>
+                        </div>
+                    </div>
+                    <div class="project-links">
+                        <a href="https://dangchinh.github.io/VietlottDashboard/" target="_blank" class="project-link"><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i> Visit Site</a>
+                        <a href="https://github.com/dangochinh/dangchinh.github.io/tree/main/VietlottDashboard"
+                            target="_blank" class="project-link"><i class="fa-brands fa-github"></i> Source Code</a>
+                    </div>
+                </div>
+
+                <!-- Project 3: Pe-thui tracker -->
+                <div class="project-card">
+                    <div class="project-icon">
+                        <i class="fa-solid fa-baby"></i>
+                    </div>
+                    <h3 class="project-title">Pe-Thui Tracker</h3>
+                    <p class="project-desc">A personal utility application built to track daily routines and milestones,
+                        optimized for quick mobile access and ease of use.</p>
+
+                    <div class="tech-stack">
+                        <div class="tech-item">
+                            <span class="tech-label">Platform:</span>
+                            <span class="tech-value">Mobile-First Progressive Web App</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Tech:</span>
+                            <span class="tech-value">React (Vite), Context API, LocalStorage</span>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-label">Arch:</span>
+                            <span class="tech-value">Offline-capable static web architecture leveraging persistent
+                                browser storage and robust global state management.</span>
+                        </div>
+                    </div>
+                    <div class="project-links">
+                        <a href="https://dangchinh.github.io/pethuitracker/" target="_blank" class="project-link"><i
+                                class="fa-solid fa-arrow-up-right-from-square"></i> Visit Site</a>
+                        <a href="https://github.com/dangochinh/pethuitracker" target="_blank" class="project-link"><i
+                                class="fa-brands fa-github"></i> Source Code</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Đặng Ngọc Chính. All rights reserved.</p>
+            <p style="margin-top: 0.5rem; opacity: 0.7;">PMP® & PMI-ACP® Certified Professional</p>
+        </div>
+    </footer>
+
+    <!-- Simple Scroll Animation Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.1
+            };
+
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const animateElements = document.querySelectorAll('.timeline-item, .project-card, .section-header');
+
+            animateElements.forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                el.style.transition = 'all 0.6s ease-out';
+                observer.observe(el);
+            });
+
+            setTimeout(() => {
+                document.querySelectorAll('.project-card').forEach(card => {
+                    card.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+                });
+                document.querySelectorAll('.timeline-content').forEach(content => {
+                    content.style.transition = 'transform 0.3s ease, box-shadow 0.3s ease';
+                });
+            }, 1000);
+        });
+    </script>
+</body>
+
+</html>
