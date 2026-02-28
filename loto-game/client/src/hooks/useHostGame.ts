@@ -109,16 +109,81 @@ export const useHostGame = (roomId: string | undefined) => {
             return;
         }
 
-        // Random chọn 1 trong 2 chế độ bốc số:
-        // 1. RANDOM (50%): bốc ngẫu nhiên 100%
-        // 2. REGULATED (50%): thuật toán điều tiết kịch tính
-        const useRegulated = Math.random() < 0.5;
+        // Tính toán thông tin lịch sử ván đấu
+        const winRecords = winHistoryRef.current.filter(r => r.type === 'win');
+        const gameIndex = winRecords.length + 1;
+
+        // streakCounts: Số ván liên tiếp chưa bingo cho mỗi player
+        const streakCounts: Record<string, number> = {};
+        playersRef.current.forEach(player => {
+            let streak = 0;
+            // Duyệt ngược lịch sử thắng
+            for (let i = winRecords.length - 1; i >= 0; i--) {
+                const record = winRecords[i];
+                const isWinner = record.name === player.name || record.coWinners?.includes(player.name);
+                if (isWinner) break;
+                streak++;
+            }
+            streakCounts[player.id] = streak;
+        });
+
+        const lastWin = winRecords[winRecords.length - 1];
+        const lastWinnerIds: string[] = [];
+        if (lastWin) {
+            const mainWinner = playersRef.current.find(p => p.name === lastWin.name);
+            if (mainWinner) lastWinnerIds.push(mainWinner.id);
+            lastWin.coWinners?.forEach(name => {
+                const coWinner = playersRef.current.find(p => p.name === name);
+                if (coWinner) lastWinnerIds.push(coWinner.id);
+            });
+        }
+
+        // Tính toán danh sách người chơi đã đạt giới hạn thắng (max 5 ván)
+        const cappedPlayerIds: string[] = [];
+        playersRef.current.forEach(player => {
+            let totalWins = 0;
+            winRecords.forEach(record => {
+                const isWinner = record.name === player.name || record.coWinners?.includes(player.name);
+                if (isWinner) totalWins++;
+            });
+            if (totalWins >= 5) {
+                cappedPlayerIds.push(player.id);
+            }
+        });
+
+        // --- CẬP NHẬT: Logic Offset cho ván cứu ---
+        // Ván_cứu = (5 * n) +/- {0, 1}
+        const cycleN = Math.round(gameIndex / 5);
+        let isSpecialRound = false;
+
+        if (cycleN > 0 && roomId) {
+            // Sử dụng roomId làm seed để offset cố định trong suốt ván đấu của room đó
+            // nhưng vẫn ngẫu nhiên giữa các room và các chu kỳ n
+            const seed = roomId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) + cycleN;
+            const offset = (seed % 3) - 1; // Kết quả: -1, 0, hoặc 1
+            const targetSpecialGame = (5 * cycleN) + offset;
+
+            isSpecialRound = gameIndex === targetSpecialGame;
+        }
+
+        const useRegulated = isSpecialRound || Math.random() < 0.5;
+
         if (useRegulated) {
-            lotoControllerRef.current = new LotoController(playersRef.current);
-            console.log(`[Game] Mode = REGULATED (K=${lotoControllerRef.current.k_threshold}, ${playersRef.current.length} players)`);
+            lotoControllerRef.current = new LotoController(
+                playersRef.current,
+                streakCounts,
+                lastWinnerIds,
+                isSpecialRound,
+                cappedPlayerIds
+            );
+            console.log(`[Game] Mode = REGULATED (Round=${gameIndex}). Capped Players: ${cappedPlayerIds.length}`);
+            if (isSpecialRound) {
+                const sortedStreaks = Object.entries(streakCounts).sort((a, b) => b[1] - a[1]);
+                console.log(`[Game] Special "NO ONE LEFT BEHIND" Round ${gameIndex}: Algorithm Mandatory! Top lost streak:`, sortedStreaks[0]);
+            }
         } else {
             lotoControllerRef.current = null;
-            console.log(`[Game] Mode = RANDOM (${playersRef.current.length} players)`);
+            console.log(`[Game] Mode = RANDOM (Round=${gameIndex}, Players=${playersRef.current.length})`);
         }
 
         setGameState('PLAYING');

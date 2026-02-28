@@ -22,13 +22,47 @@ export class LotoController {
     private allNumbers: number[];
     public currentStage: DrawStage;
     public k_threshold: number;
+    private lastWinnerIds: string[];
+    private isSpecialRound: boolean;
+    private streakCounts: Record<string, number>;
+    private cappedPlayerIds: string[];
 
-    constructor(players: Player[]) {
+    constructor(
+        players: Player[],
+        streakCounts: Record<string, number> = {},
+        lastWinnerIds: string[] = [],
+        isSpecialRound: boolean = false,
+        cappedPlayerIds: string[] = []
+    ) {
         this.players = players;
         this.drawnNumbers = new Set();
         this.allNumbers = Array.from({ length: 90 }, (_, i) => i + 1);
         this.currentStage = 'SAFE_INIT';
         this.k_threshold = Math.floor(Math.random() * 11) + 15; // K ∈ [15, 25]
+        this.streakCounts = streakCounts;
+        this.lastWinnerIds = lastWinnerIds;
+        this.isSpecialRound = isSpecialRound;
+        this.cappedPlayerIds = cappedPlayerIds;
+    }
+
+    /** Kiểm tra số num có làm người bị giới hạn đạt Bingo không */
+    private isCappedBingo(num: number): boolean {
+        if (!this.cappedPlayerIds || this.cappedPlayerIds.length === 0) return false;
+
+        for (const cappedId of this.cappedPlayerIds) {
+            const player = this.players.find(p => p.id === cappedId);
+            if (!player || !player.tickets) continue;
+
+            for (const ticket of player.tickets) {
+                for (const row of ticket) {
+                    if (row.includes(num)) {
+                        const status = this.getRowStatus(row);
+                        if (status.hits === 4) return true; // Sắp bingo và bốc trúng số cuối -> Bingo
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /** Đếm số hit trong một hàng */
@@ -64,14 +98,24 @@ export class LotoController {
             this.currentStage = 'NATURAL_FINISH';
         }
 
-        let candidate: number;
+        // Lọc bỏ những số làm người chơi đã đạt giới hạn bị Bingo
+        let filteredRemaining = remainingNumbers.filter(n => !this.isCappedBingo(n));
+        if (filteredRemaining.length === 0) {
+            filteredRemaining = remainingNumbers; // Nếu không còn số nào khác, đành bốc đại
+        }
+
+        let candidate: number | undefined;
 
         if (this.currentStage === 'SAFE_INIT') {
-            candidate = this.drawSafeInit(remainingNumbers);
+            candidate = this.drawSafeInit(filteredRemaining);
         } else if (this.currentStage === 'WAITING_PUSH') {
-            candidate = this.drawWaitingPush(remainingNumbers);
+            candidate = this.drawWaitingPush(filteredRemaining);
         } else {
-            candidate = remainingNumbers[Math.floor(Math.random() * remainingNumbers.length)];
+            candidate = this.drawNaturalFinish(filteredRemaining);
+        }
+
+        if (candidate === undefined || candidate === null) {
+            candidate = filteredRemaining[0];
         }
 
         this.drawnNumbers.add(candidate);
@@ -80,6 +124,105 @@ export class LotoController {
             stage: this.currentStage,
             totalDrawn: this.drawnNumbers.size
         };
+    }
+
+    /**
+     * GIAI ĐOẠN 3: Tự nhiên nhưng có kiểm soát
+     * 1. No one left behind: Nếu ván đặc biệt, ưu tiên người thắng ít nhất.
+     * 2. Hạn chế thắng liên tục: Ưu tiên thấp cho người vừa thắng ván trước.
+     */
+    private drawNaturalFinish(remaining: number[]): number {
+        // 1. Kiểm tra ván đặc biệt: "No one left behind"
+        if (this.isSpecialRound) {
+            return this.drawFavorLuckless(remaining);
+        }
+
+        // 2. Kiểm tra hạn chế thắng liên tiếp
+        if (this.lastWinnerIds.length > 0) {
+            return this.drawAvoidRecentWinners(remaining);
+        }
+
+        // Mặc định: Ngẫu nhiên
+        return remaining[Math.floor(Math.random() * remaining.length)];
+    }
+
+    /** Ưu tiên người chơi có số ván chưa bingo cao nhất */
+    private drawFavorLuckless(remaining: number[]): number {
+        const maxStreak = Math.max(...this.players.map(p => this.streakCounts[p.id] || 0));
+        const lucklessPlayers = this.players.filter(p => (this.streakCounts[p.id] || 0) === maxStreak);
+
+        const targetPool: number[] = [];
+
+        // Ưu tiên 1: Người chơi đang chờ 4/5 -> Bốc phát thắng luôn
+        for (const player of lucklessPlayers) {
+            if (!player.tickets) continue;
+            for (const ticket of player.tickets) {
+                for (const row of ticket) {
+                    const { hits } = this.getRowStatus(row);
+                    if (hits === 4) {
+                        const missing = row.filter(n => n !== 0 && !this.drawnNumbers.has(n));
+                        missing.forEach(n => { if (remaining.includes(n)) targetPool.push(n); });
+                    }
+                }
+            }
+        }
+
+        if (targetPool.length > 0) {
+            return targetPool[Math.floor(Math.random() * targetPool.length)];
+        }
+
+        // Ưu tiên 2: Người chơi đang 3/5 -> Tiến lên 4/5
+        for (const player of lucklessPlayers) {
+            if (!player.tickets) continue;
+            for (const ticket of player.tickets) {
+                for (const row of ticket) {
+                    const { hits } = this.getRowStatus(row);
+                    if (hits === 3) {
+                        const missing = row.filter(n => n !== 0 && !this.drawnNumbers.has(n));
+                        missing.forEach(n => { if (remaining.includes(n)) targetPool.push(n); });
+                    }
+                }
+            }
+        }
+
+        if (targetPool.length > 0) {
+            return targetPool[Math.floor(Math.random() * targetPool.length)];
+        }
+
+        return remaining[Math.floor(Math.random() * remaining.length)];
+    }
+
+    /** Tránh bốc số khiến người thắng ván trước thắng tiếp */
+    private drawAvoidRecentWinners(remaining: number[]): number {
+        const pool = [...remaining];
+        // Xáo trộn sơ bộ
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+
+        for (const val of pool) {
+            let causesRecentWinnerBingo = false;
+            for (const winnerId of this.lastWinnerIds) {
+                const player = this.players.find(p => p.id === winnerId);
+                if (!player || !player.tickets) continue;
+                for (const ticket of player.tickets) {
+                    for (const row of ticket) {
+                        const { hits } = this.getRowStatus(row);
+                        if (hits === 4 && row.includes(val)) {
+                            causesRecentWinnerBingo = true;
+                            break;
+                        }
+                    }
+                    if (causesRecentWinnerBingo) break;
+                }
+                if (causesRecentWinnerBingo) break;
+            }
+
+            if (!causesRecentWinnerBingo) return val;
+        }
+
+        return pool[0]; // Fallback
     }
 
     /**
@@ -122,6 +265,34 @@ export class LotoController {
      * Bắt buộc chạy đến khi 100% có ≥1 hàng 4/5
      */
     private drawWaitingPush(remaining: number[]): number {
+        // Nếu là ván cứu, ưu tiên tuyệt đối đẩy người "đen" nhất lên 4/5 trước
+        if (this.isSpecialRound) {
+            const maxStreak = Math.max(...this.players.map(p => this.streakCounts[p.id] || 0));
+            const lucklessNotWaiting = this.players.filter(p => {
+                const isNotWaiting = !p.tickets?.some(t => t.some(r => this.getRowStatus(r).hits >= 4));
+                return isNotWaiting && (this.streakCounts[p.id] || 0) === maxStreak;
+            });
+
+            if (lucklessNotWaiting.length > 0) {
+                const lpTargetPool: number[] = [];
+                for (const player of lucklessNotWaiting) {
+                    if (!player.tickets) continue;
+                    for (const ticket of player.tickets) {
+                        for (const row of ticket) {
+                            const { hits } = this.getRowStatus(row);
+                            if (hits === 3 || hits === 2) {
+                                const missing = row.filter(n => n !== 0 && !this.drawnNumbers.has(n));
+                                missing.forEach(n => { if (remaining.includes(n)) lpTargetPool.push(n); });
+                            }
+                        }
+                    }
+                }
+                if (lpTargetPool.length > 0) {
+                    return lpTargetPool[Math.floor(Math.random() * lpTargetPool.length)];
+                }
+            }
+        }
+
         const notWaitingPlayers = this.players.filter(player => {
             if (!player.tickets) return false;
             return !player.tickets.some(ticket =>
